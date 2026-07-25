@@ -71,7 +71,7 @@ The MVP keeps product state in the browser so it is easy to run and judge. Resum
 
 The public Vercel URL will be added here after the production environment variables are configured.
 
-> Live demo placeholder: `https://your-workforceos-project.vercel.app`
+> Live demo placeholder: `https://workforceos-bay.vercel.app/dashboard`
 
 ## Screenshots
 
