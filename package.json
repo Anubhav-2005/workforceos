@@ -2,14 +2,37 @@
   "name": "workforceos",
   "version": "0.1.0",
   "private": true,
+  "description": "An AI workforce operating system for recruiting, approvals, and cross-agent automation.",
+  "author": "Anubhav Pandey <tibs2005@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Anubhav-2005/workforceos.git"
+  },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run lint && npm run typecheck && npm run format:check"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "overrides": {
+    "minimatch": "10.2.5",
+    "postcss": "8.5.23",
+    "sharp": "0.35.3"
   },
   "dependencies": {
+    "framer-motion": "^12.42.2",
+    "lucide-react": "^1.26.0",
     "next": "16.2.11",
+    "openai": "^6.49.0",
+    "pdf-parse": "^2.4.5",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
@@ -21,6 +44,8 @@
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
+    "prettier": "^3.9.6",
+    "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
