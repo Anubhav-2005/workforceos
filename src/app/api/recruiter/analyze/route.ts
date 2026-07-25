@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { PDFParse } from "pdf-parse";
+import { EnvironmentConfigurationError } from "@/lib/env";
 import { getOpenAIClient } from "@/lib/openai";
 import { buildRecruiterResumeInput, RECRUITER_SYSTEM_PROMPT } from "@/lib/prompts/recruiterPrompt";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -134,13 +135,18 @@ function handleError(error: unknown) {
   if (error instanceof OpenAI.APIConnectionError)
     return jsonError("Unable to reach the AI service. Please check your connection and try again.", 502);
   if (error instanceof OpenAI.APIError) {
+    if (error.code === "insufficient_quota")
+      return jsonError(
+        "Resume analysis is temporarily unavailable because the AI project has no remaining quota.",
+        503,
+      );
     if (error.status === 429) return jsonError("The AI service is busy. Please try again in a moment.", 429);
     if (error.status === 408 || error.status === 504)
       return jsonError("The AI analysis timed out. Please try again.", 504);
     return jsonError("The AI service could not analyze this resume right now.", 502);
   }
   if (error instanceof RecruiterAnalysisError) return jsonError(error.message, error.reason === "refusal" ? 422 : 502);
-  if (error instanceof Error && error.message === "OPENAI_API_KEY is not configured.") {
+  if (error instanceof EnvironmentConfigurationError && error.variable === "OPENAI_API_KEY") {
     return jsonError("Resume analysis is not configured. Add OPENAI_API_KEY to .env.local.", 503);
   }
   if (error instanceof Error && error.message.startsWith("The AI returned")) return jsonError(error.message, 502);

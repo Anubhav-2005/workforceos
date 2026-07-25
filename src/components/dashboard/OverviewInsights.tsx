@@ -9,7 +9,7 @@ export default function OverviewInsights() {
   const { openTaskModal } = useDashboard();
 
   return (
-    <div className="space-y-7">
+    <div className="min-w-0 space-y-7">
       <Link
         href="/dashboard/analytics"
         className="block overflow-hidden rounded-2xl bg-[#171b31] p-5 text-white shadow-xl shadow-slate-200 transition hover:-translate-y-0.5 sm:p-6"

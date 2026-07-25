@@ -4,7 +4,7 @@ import { getRequiredServerEnv } from "@/lib/env";
 
 let client: OpenAI | undefined;
 
-export function getOpenAIClient() {
+export function getOpenAIClient(): OpenAI {
   const apiKey = getRequiredServerEnv("OPENAI_API_KEY");
   client ??= new OpenAI({ apiKey, timeout: 45_000, maxRetries: 0 });
   return client;
