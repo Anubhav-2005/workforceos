@@ -69,24 +69,9 @@ The MVP keeps product state in the browser so it is easy to run and judge. Resum
 
 ## Live demo
 
-The public Vercel URL will be added here after the production environment variables are configured.
+[Open the live WorkforceOS dashboard](https://workforceos-bay.vercel.app/dashboard).
 
-> Live demo placeholder: `https://workforceos-bay.vercel.app/dashboard`
-
-## Screenshots
-
-The social preview above shows the main product direction. Add final captures after the Vercel deployment so the screenshots match the submitted build.
-
-| Surface          | Screenshot slot                    |
-| ---------------- | ---------------------------------- |
-| Dashboard        | `docs/assets/dashboard.png`        |
-| AI Recruiter     | `docs/assets/recruiter.png`        |
-| Workforce Engine | `docs/assets/workflow-engine.png`  |
-| Mobile dashboard | `docs/assets/mobile-dashboard.png` |
-
-## Demo GIF
-
-> Demo GIF placeholder: record the flow from resume upload through human approval and workflow completion, then save it as `docs/assets/workforceos-demo.gif`.
+Resume analysis requires a funded `OPENAI_API_KEY` in the Vercel production environment. The rest of the MVP, including candidate approvals and the Workforce Engine simulation, remains available without it.
 
 ## Tech stack
 

@@ -3,16 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Bell, ChevronDown, CircleUserRound, Menu, Search, Sparkles } from "lucide-react";
+import { BarChart3, Bell, ChevronDown, CircleUserRound, Menu, Search, Sparkles } from "lucide-react";
 
 type TopbarProps = {
+  workspaceName: string;
   unread: number;
   onUnreadChange: (value: number) => void;
   onMenuOpen: () => void;
-  onNotify: (message: string) => void;
 };
 
-export default function Topbar({ unread, onUnreadChange, onMenuOpen, onNotify }: TopbarProps) {
+export default function Topbar({ workspaceName, unread, onUnreadChange, onMenuOpen }: TopbarProps) {
   const router = useRouter();
   const menusRef = useRef<HTMLDivElement>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -47,10 +47,14 @@ export default function Topbar({ unread, onUnreadChange, onMenuOpen, onNotify }:
     };
   }, [menuOpen]);
 
-  const submitSearch = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const navigateToSearch = () => {
     const query = search.trim();
     router.push(query ? `/dashboard/overview?search=${encodeURIComponent(query)}` : "/dashboard/overview");
+  };
+
+  const submitSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    navigateToSearch();
   };
 
   return (
@@ -84,31 +88,18 @@ export default function Topbar({ unread, onUnreadChange, onMenuOpen, onNotify }:
             aria-expanded={workspaceOpen}
             className="flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-slate-400 transition hover:bg-white hover:text-slate-700"
           >
-            <span>Acme Studio</span>
+            <span>{workspaceName}</span>
             <ChevronDown size={15} />
           </button>
           {workspaceOpen && (
             <div className="absolute left-0 mt-3 w-52 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
-              <button
-                type="button"
-                onClick={() => {
-                  setWorkspaceOpen(false);
-                  onNotify("Acme Studio is the active workspace.");
-                }}
+              <Link
+                href="/dashboard/settings"
+                onClick={() => setWorkspaceOpen(false)}
                 className="w-full rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50"
               >
-                Acme Studio <span className="float-right text-indigo-600">Active</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setWorkspaceOpen(false);
-                  onNotify("Workspace switching is available locally in this MVP.");
-                }}
-                className="w-full rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-500 hover:bg-slate-50"
-              >
-                Switch workspace
-              </button>
+                {workspaceName} <span className="float-right text-indigo-600">Active</span>
+              </Link>
             </div>
           )}
         </div>
@@ -118,10 +109,22 @@ export default function Topbar({ unread, onUnreadChange, onMenuOpen, onNotify }:
             onSubmit={submitSearch}
             className="hidden h-10 w-56 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-slate-400 md:flex xl:w-64"
           >
-            <Search size={16} />
+            <button
+              type="submit"
+              aria-label="Submit activity search"
+              title="Search"
+              className="shrink-0 transition hover:text-indigo-600 focus-visible:rounded focus-visible:ring-2 focus-visible:ring-indigo-200 focus-visible:outline-none"
+            >
+              <Search size={16} />
+            </button>
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                navigateToSearch();
+              }}
               className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
               placeholder="Search activity..."
               aria-label="Search work activity"
@@ -166,7 +169,8 @@ export default function Topbar({ unread, onUnreadChange, onMenuOpen, onNotify }:
                   className="mt-3 w-full rounded-xl bg-indigo-50 p-3 text-left text-xs leading-5 text-slate-600 transition hover:bg-indigo-100"
                 >
                   <strong className="text-slate-800">Maya needs your review.</strong>
-                  <br />6 candidates are ready for approval.
+                  <br />
+                  Candidates are ready for approval.
                 </button>
               </div>
             )}
@@ -202,16 +206,13 @@ export default function Topbar({ unread, onUnreadChange, onMenuOpen, onNotify }:
                 >
                   <CircleUserRound size={15} /> Profile preferences
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setProfileOpen(false);
-                    onNotify("You are already using the local MVP workspace.");
-                  }}
-                  className="w-full rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-500 hover:bg-slate-50"
+                <Link
+                  onClick={() => setProfileOpen(false)}
+                  href="/dashboard/analytics"
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50"
                 >
-                  Sign out
-                </button>
+                  <BarChart3 size={15} /> Workspace analytics
+                </Link>
               </div>
             )}
           </div>

@@ -11,6 +11,7 @@ export default function EmployeeDetailPage({ agent }: { agent: Agent }) {
   const { openTaskModal, notify } = useDashboard();
   const [paused, setPaused] = useState(false);
   const [approved, setApproved] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
   const progress = Math.round((agent.completed / agent.total) * 100);
 
   return (
@@ -126,13 +127,34 @@ export default function EmployeeDetailPage({ agent }: { agent: Agent }) {
               )}
             </button>
             <button
-              onClick={() => notify(`Opened ${agent.name}'s local activity log.`)}
+              type="button"
+              aria-expanded={activityOpen}
+              onClick={() => setActivityOpen((value) => !value)}
               className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 py-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
             >
-              <Clock3 size={14} /> View activity log
+              <Clock3 size={14} /> {activityOpen ? "Hide activity log" : "View activity log"}
             </button>
+            {activityOpen && (
+              <div className="mt-3 space-y-3 border-t border-slate-100 pt-3" aria-label={`${agent.name} activity log`}>
+                <ActivityLogItem title={`Advanced “${agent.task}”`} time="8 min ago" />
+                <ActivityLogItem title="Updated the shared workspace summary" time="24 min ago" />
+                <ActivityLogItem title="Prepared an item for human review" time="1 hr ago" />
+              </div>
+            )}
           </section>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ActivityLogItem({ title, time }: { title: string; time: string }) {
+  return (
+    <div className="flex gap-2.5 text-xs">
+      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
+      <div className="min-w-0">
+        <p className="font-medium text-slate-700">{title}</p>
+        <p className="mt-0.5 text-[10px] text-slate-400">{time}</p>
       </div>
     </div>
   );

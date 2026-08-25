@@ -1,7 +1,16 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { initialCandidates, isCandidateList, type Candidate, type HumanStatus } from "@/lib/recruiter-data";
+import {
+  demoRecruiterAnalysis,
+  getRecruiterMetrics,
+  initialCandidates,
+  isCandidateAwaitingApproval,
+  isCandidateList,
+  type Candidate,
+  type HumanStatus,
+  type RecruiterAnalysisSource,
+} from "@/lib/recruiter-data";
 import { useLocalStorageState } from "@/lib/useLocalStorageState";
 import type { RecruiterAnalysis } from "@/types/recruiter";
 import { useDashboard } from "@/components/dashboard/DashboardShell";
@@ -18,26 +27,19 @@ type RecruiterTab = "Overview" | "Candidates" | "Resume Review" | "Approvals" | 
 const tabs: RecruiterTab[] = ["Overview", "Candidates", "Resume Review", "Approvals", "Analytics"];
 
 export default function RecruiterDashboard() {
-  const { notify, openTaskModal } = useDashboard();
+  const { notify, openTaskModal, settings } = useDashboard();
   const [tab, setTab] = useState<RecruiterTab>("Overview");
   const [candidates, setCandidates, hydrated] = useLocalStorageState<Candidate[]>(
-    "workforceos-recruiter-candidates",
+    "workforceos-recruiter-candidates-v2",
     initialCandidates,
     { validate: isCandidateList },
   );
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [latestAnalysis, setLatestAnalysis] = useState<RecruiterAnalysis | null>(null);
+  const [analysisSource, setAnalysisSource] = useState<RecruiterAnalysisSource | null>(null);
 
-  const pendingCandidates = useMemo(
-    () => candidates.filter((candidate) => candidate.humanStatus === "Pending approval"),
-    [candidates],
-  );
-  const averageScore = candidates.length
-    ? Math.round(candidates.reduce((total, candidate) => total + candidate.aiScore, 0) / candidates.length)
-    : 0;
-  const approvalRate = candidates.length
-    ? Math.round(((candidates.length - pendingCandidates.length) / candidates.length) * 100)
-    : 0;
+  const pendingCandidates = useMemo(() => candidates.filter(isCandidateAwaitingApproval), [candidates]);
+  const metrics = useMemo(() => getRecruiterMetrics(candidates), [candidates]);
 
   const closeCandidate = useCallback(() => setSelectedCandidate(null), []);
 
@@ -47,7 +49,7 @@ export default function RecruiterDashboard() {
     if (candidate) notify(`${candidate.name}: ${humanStatus.toLowerCase()}.`);
   };
 
-  const saveAnalysis = (analysis: RecruiterAnalysis) => {
+  const saveAnalysis = (analysis: RecruiterAnalysis, source: RecruiterAnalysisSource = "openai") => {
     const candidate: Candidate = {
       id: crypto.randomUUID(),
       name: analysis.candidateName.trim() || "Unnamed candidate",
@@ -56,13 +58,15 @@ export default function RecruiterDashboard() {
       skills: analysis.skills,
       resumeStatus: "Reviewed",
       aiScore: analysis.score,
-      humanStatus: "Pending approval",
+      humanStatus: settings.approvals ? "Pending approval" : "Approved",
       summary: analysis.reasoning,
       analysis,
+      analysisSource: source,
     };
     setCandidates((current) => [candidate, ...current]);
     setLatestAnalysis(analysis);
-    notify(`${candidate.name} was added to the approval queue.`);
+    setAnalysisSource(source);
+    notify(candidateSavedMessage(candidate.name, source, settings.approvals), source === "demo" ? "info" : "success");
   };
 
   if (!hydrated) return <RecruiterSkeleton />;
@@ -93,8 +97,10 @@ export default function RecruiterDashboard() {
         {tab === "Overview" && (
           <RecruiterOverviewTab
             candidates={candidates}
-            pendingCount={pendingCandidates.length}
-            averageScore={averageScore}
+            pendingCount={metrics.pendingApprovalCount}
+            reviewedCount={metrics.reviewedCount}
+            decisionedCount={metrics.decisionedCount}
+            averageScore={metrics.averageReviewedScore}
             onOpenCandidate={setSelectedCandidate}
             onOpenApprovals={() => setTab("Approvals")}
             onCreateTask={() => openTaskModal({ assignTo: "recruiter", name: "Review Recruiter priority queue" })}
@@ -102,12 +108,16 @@ export default function RecruiterDashboard() {
         )}
         {tab === "Candidates" && <CandidatesTab candidates={candidates} onOpenCandidate={setSelectedCandidate} />}
         {tab === "Resume Review" && (
-          <ResumeReviewTab latestAnalysis={latestAnalysis} onAnalyzed={saveAnalysis} onError={notify} />
+          <ResumeReviewTab
+            latestAnalysis={latestAnalysis}
+            analysisSource={analysisSource}
+            onAnalyzed={(analysis) => saveAnalysis(analysis)}
+            onError={(message) => notify(message, "error")}
+            onUseDemo={() => saveAnalysis(demoRecruiterAnalysis, "demo")}
+          />
         )}
         {tab === "Approvals" && <ApprovalsTab candidates={pendingCandidates} onUpdate={updateStatus} />}
-        {tab === "Analytics" && (
-          <AnalyticsTab candidates={candidates} averageScore={averageScore} approvalRate={approvalRate} />
-        )}
+        {tab === "Analytics" && <AnalyticsTab metrics={metrics} />}
       </div>
 
       {selectedCandidate && <CandidateDrawer candidate={selectedCandidate} onClose={closeCandidate} />}
@@ -115,9 +125,16 @@ export default function RecruiterDashboard() {
   );
 }
 
+function candidateSavedMessage(name: string, source: RecruiterAnalysisSource, requiresApproval: boolean) {
+  const demoPrefix = source === "demo" ? "Fictional demo candidate " : "";
+  if (!requiresApproval) return `${demoPrefix}${name} advanced because human approval is disabled.`;
+  if (source === "demo") return `${name}'s fictional demo analysis was added to the approval queue.`;
+  return `${name} was added to the approval queue.`;
+}
+
 function RecruiterSkeleton() {
   return (
-    <div className="animate-pulse">
+    <div className="mx-auto max-w-[1480px] animate-pulse px-5 py-8 sm:px-8 lg:px-10">
       <div className="h-64 rounded-2xl bg-white" />
       <div className="mt-6 h-12 rounded-xl bg-white" />
       <div className="mt-7 grid gap-7 xl:grid-cols-2">

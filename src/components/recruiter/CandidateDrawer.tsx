@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import type { Candidate } from "@/lib/recruiter-data";
+import AnalysisSourceBadge from "@/components/recruiter/AnalysisSourceBadge";
 import ScoreBadge from "@/components/recruiter/ScoreBadge";
 import ResumeAnalysis from "@/components/recruiter/ResumeAnalysis";
 
@@ -38,7 +39,10 @@ export default function CandidateDrawer({ candidate, onClose }: { candidate: Can
       <aside className="h-full w-full max-w-[460px] overflow-y-auto bg-white p-5 shadow-2xl shadow-slate-900/20 sm:rounded-3xl sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-xs font-bold tracking-[0.14em] text-slate-400 uppercase">Candidate profile</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-bold tracking-[0.14em] text-slate-400 uppercase">Candidate profile</p>
+              <AnalysisSourceBadge source={candidate.analysisSource} />
+            </div>
             <h2
               id="candidate-drawer-title"
               className="mt-3 truncate text-2xl font-bold tracking-[-0.04em] text-slate-900"
@@ -87,7 +91,7 @@ export default function CandidateDrawer({ candidate, onClose }: { candidate: Can
 
         {candidate.analysis && (
           <div className="mt-6">
-            <ResumeAnalysis analysis={candidate.analysis} />
+            <ResumeAnalysis analysis={candidate.analysis} source={candidate.analysisSource ?? "openai"} />
           </div>
         )}
       </aside>

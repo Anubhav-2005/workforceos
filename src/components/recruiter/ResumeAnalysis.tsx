@@ -2,7 +2,13 @@ import { BriefcaseBusiness, CheckCircle2, GraduationCap, Mail, Phone, Sparkles }
 import type { RecruiterAnalysis as RecruiterAnalysisType } from "@/types/recruiter";
 import ScoreBadge from "@/components/recruiter/ScoreBadge";
 
-export default function ResumeAnalysis({ analysis }: { analysis: RecruiterAnalysisType }) {
+export default function ResumeAnalysis({
+  analysis,
+  source = "openai",
+}: {
+  analysis: RecruiterAnalysisType;
+  source?: "openai" | "demo";
+}) {
   return (
     <section className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 sm:p-5">
       <div className="flex flex-col justify-between gap-4 min-[390px]:flex-row min-[390px]:items-start">
@@ -11,7 +17,14 @@ export default function ResumeAnalysis({ analysis }: { analysis: RecruiterAnalys
             <Sparkles size={18} />
           </span>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-slate-900">AI resume analysis</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-bold text-slate-900">AI resume analysis</p>
+              {source === "demo" && (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold tracking-wide text-amber-700 uppercase">
+                  Demo data
+                </span>
+              )}
+            </div>
             <p className="mt-1 truncate text-xs text-slate-500">
               {analysis.candidateName || "Candidate name not detected"} · {analysis.yearsExperience} years experience
             </p>

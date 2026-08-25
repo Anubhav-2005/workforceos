@@ -36,7 +36,11 @@ export function analyzeResume(file: File, { onProgress }: AnalyzeResumeOptions =
       }
       reject(
         new RecruiterServiceError(
-          isErrorPayload(payload) && payload.error ? payload.error : "Unable to analyze this resume.",
+          isErrorPayload(payload) && payload.error
+            ? payload.error
+            : request.status >= 500
+              ? "The resume service is temporarily unavailable. Try again or use the demo result."
+              : "Unable to analyze this resume.",
           request.status,
         ),
       );

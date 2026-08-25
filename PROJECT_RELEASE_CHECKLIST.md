@@ -12,9 +12,12 @@
 - [x] Confirmed the route uses structured OpenAI Responses API output and application-side validation.
 - [x] Audited dashboard routes at mobile width and removed a horizontal-overflow issue on the overview page.
 - [x] Preserved the existing visual design while keeping interactive state, loading, empty, success, and error states intact.
-- [x] Rewrote the repository README with setup, architecture, security, deployment, screenshots, demo, and live-demo placeholders.
+- [x] Rewrote the repository README with setup, architecture, security, deployment, and the public live demo.
 - [x] Added hackathon materials: problem statement, architecture, feature inventory, roadmap, demo script, presentation notes, and judges FAQ.
 - [x] Added Vercel deployment, production, and launch guides.
+- [x] Added the public Vercel URL to the README and launch checklist.
+- [x] Externalized `pdf-parse` for Vercel’s Node runtime and lazy-loaded it inside the upload path.
+- [x] Added error-specific toast feedback and a clearly labeled fictional demo result for live-demo recovery.
 - [x] Removed no product features and found no tracked debug logs, TODOs, or commented-out implementation blocks during the final audit.
 
 ## Verification completed
@@ -29,7 +32,7 @@
 - [ ] Rotate the OpenAI key that was shared outside a private secret manager, then put the replacement only in `.env.local` and Vercel.
 - [ ] Ensure the selected OpenAI project has billing or available credits; resume analysis currently cannot run when the project reports `insufficient_quota`.
 - [ ] Set `OPENAI_API_KEY` and final `NEXT_PUBLIC_APP_URL` in Vercel, then redeploy.
-- [ ] Replace the Live Demo, screenshot, GIF, demo video, and presentation placeholders with final submission links/assets.
+- [ ] Add final demo video and presentation links if the submission portal requests them.
 - [ ] Complete the deployed-environment checks in [docs/production-checklist.md](./docs/production-checklist.md) and [docs/launch-checklist.md](./docs/launch-checklist.md).
 
 ## Known MVP boundaries

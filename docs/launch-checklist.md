@@ -2,14 +2,13 @@
 
 ## Before submitting
 
-- [ ] Confirm the GitHub repository is public and opens without credentials.
-- [ ] Confirm the Vercel URL is public and uses HTTPS.
-- [ ] Add the final Vercel URL to the README’s Live Demo section.
-- [ ] Add production screenshots and the recorded demo GIF to `docs/assets/`.
+- [x] Confirm the GitHub repository is public and opens without credentials.
+- [x] Confirm the Vercel URL is public and uses HTTPS.
+- [x] Add the final Vercel URL to the README’s Live Demo section.
 - [ ] Add a funded OpenAI key to Vercel and test one PDF analysis end to end.
 - [ ] Rotate any API key that was ever pasted into chat, a terminal, a screenshot, or a commit.
-- [ ] Run `npm run check` and `npm run build` from a clean install.
-- [ ] Review the demo script and record a two-to-three minute walkthrough.
+- [x] Run `npm run check` and `npm run build` from a clean install.
+- [ ] Rehearse the timed seven-minute walkthrough in `docs/demo-script.md`.
 
 ## During judging
 
@@ -21,7 +20,7 @@
 
 ## Submission links
 
-- [ ] GitHub repository: `https://github.com/Anubhav-2005/workforceos`
-- [ ] Live demo: add final Vercel URL
+- [x] GitHub repository: `https://github.com/Anubhav-2005/workforceos`
+- [x] Live demo: `https://workforceos-bay.vercel.app/dashboard`
 - [ ] Demo video: add final recording URL
 - [ ] Presentation: add final deck URL

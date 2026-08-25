@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   poweredByHeader: false,
   outputFileTracingRoot: process.cwd(),
+  serverExternalPackages: ["pdf-parse", "@napi-rs/canvas"],
   async headers() {
     return [
       {

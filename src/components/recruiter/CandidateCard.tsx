@@ -1,5 +1,6 @@
 import { ArrowUpRight, FileCheck2 } from "lucide-react";
 import type { Candidate } from "@/lib/recruiter-data";
+import AnalysisSourceBadge from "@/components/recruiter/AnalysisSourceBadge";
 import ScoreBadge from "@/components/recruiter/ScoreBadge";
 
 export default function CandidateCard({ candidate, onSelect }: { candidate: Candidate; onSelect: () => void }) {
@@ -15,7 +16,10 @@ export default function CandidateCard({ candidate, onSelect }: { candidate: Cand
             .map((word) => word[0])
             .join("")}
         </div>
-        <ArrowUpRight size={17} className="text-slate-300 transition group-hover:text-indigo-600" />
+        <div className="flex items-center gap-2">
+          <AnalysisSourceBadge source={candidate.analysisSource} />
+          <ArrowUpRight size={17} className="text-slate-300 transition group-hover:text-indigo-600" />
+        </div>
       </div>
       <p className="mt-4 text-sm font-bold text-slate-900">{candidate.name}</p>
       <p className="mt-1 text-xs text-slate-500">

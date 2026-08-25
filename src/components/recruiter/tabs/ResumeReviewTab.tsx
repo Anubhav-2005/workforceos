@@ -9,19 +9,23 @@ const ResumeUploader = dynamic(() => import("@/components/recruiter/ResumeUpload
 
 export default function ResumeReviewTab({
   latestAnalysis,
+  analysisSource,
   onAnalyzed,
   onError,
+  onUseDemo,
 }: {
   latestAnalysis: RecruiterAnalysis | null;
+  analysisSource: "openai" | "demo" | null;
   onAnalyzed: (analysis: RecruiterAnalysis) => void;
   onError: (message: string) => void;
+  onUseDemo: () => void;
 }) {
   return (
     <div className="grid gap-7 xl:grid-cols-[0.85fr_1.15fr]">
-      <ResumeUploader onAnalyzed={onAnalyzed} onError={onError} />
+      <ResumeUploader onAnalyzed={onAnalyzed} onError={onError} onUseDemo={onUseDemo} />
       <div>
         {latestAnalysis ? (
-          <ResumeAnalysis analysis={latestAnalysis} />
+          <ResumeAnalysis analysis={latestAnalysis} source={analysisSource ?? "openai"} />
         ) : (
           <section className="grid min-h-72 place-items-center rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center">
             <div>

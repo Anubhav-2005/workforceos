@@ -1,59 +1,152 @@
-# Demo script
+# WorkforceOS final demo script
 
-## Goal
+## Run of show
 
-Show the full WorkforceOS loop in under three minutes: an AI employee completes work, a person stays in control, and work moves visibly across the workforce.
+Target **6:30 of prepared content**, leaving 30 seconds of safety inside the seven-minute limit.
 
-## Setup before recording
+| Time      | Section                | Jury signal                                      |
+| --------- | ---------------------- | ------------------------------------------------ |
+| 0:00-2:30 | Problem and solution   | Relevance, differentiation, business viability   |
+| 2:30-6:30 | Complete working MVP   | Live performance, human control, technical depth |
+| 6:30-7:00 | Outcome and final line | Scalability, clarity, memorable close            |
+| Afterward | Jury questions         | Architecture, trade-offs, real-world execution   |
 
-- Open the deployed site in a clean browser session.
-- Confirm the production `OPENAI_API_KEY` has available API credits.
-- Keep a text-based PDF resume under 5 MB ready to upload.
-- Start on the dashboard at a desktop width; briefly switch to a phone width near the end.
+## Before joining the meeting
 
-## 0:00–0:20 — The problem and workspace
+- Use the current production URL and test it in the same browser and network you will present from.
+- Confirm the Vercel deployment has a funded, rotated `OPENAI_API_KEY` and run one successful resume analysis.
+- Keep one clean, text-based PDF resume under 5 MB on the desktop. Use a fictional candidate with no sensitive data.
+- Open the dashboard in the first tab and keep the Recruiter and Workflow Engine one click away.
+- Keep the browser at a readable desktop zoom, silence notifications, close unrelated tabs, and share only the browser window.
+- Rehearse the exact clicks twice with a stopwatch. Do not add features or explanations during the live run.
+- Keep a local build and a short backup recording available, but use them only if the production deployment fails.
 
-“AI tools are usually isolated. WorkforceOS gives a team one operating layer for specialized AI employees, approvals, and cross-functional handoffs.”
+## 0:00-2:30 - Problem and solution
 
-Point out the employee roster, the shared task view, and the activity overview.
+### 0:00-0:20 - Hook
 
-## 0:20–1:15 — AI Recruiter
+**Say:**
 
-1. Open **Maya, AI Recruiter**.
-2. Mention the live workload, accuracy, and task queue.
-3. Select **Resume Review** and drag in the sample PDF.
-4. Point out the upload state and explain that the PDF is validated and parsed on the server.
-5. When the analysis returns, highlight the candidate name, experience, skills, score, decision, strengths, weaknesses, and recommended role.
-6. Open the candidate drawer to show the human-readable detail view.
+“Businesses do not have an AI-tool problem anymore. They have an AI-coordination problem. A recruiter can screen a resume, another tool can draft an email, and another can prepare onboarding—but a person still has to move every piece of context between them.”
 
-Suggested line: “The model returns strict structured data, so the analysis is usable inside a workflow instead of being a blob of chat text.”
+### 0:20-0:55 - The pain
 
-## 1:15–1:50 — Human control
+**Say:**
 
-1. Open **Approvals**.
-2. Choose **Request interview** or **Approve** for a pending candidate.
-3. Show the immediate state update and toast confirmation.
+“That creates three failures: work disappears between tools, leaders cannot see what AI is doing, and important decisions happen without a clear approval trail. The result is a collection of assistants, not a workforce.”
 
-Suggested line: “The AI prepares the decision, but WorkforceOS keeps the decision point with a person.”
+“For a hiring team, that means repeatedly reading resumes, copying candidate details, chasing approvals, writing follow-ups, and preparing onboarding by hand.”
 
-## 1:50–2:40 — Workforce Engine
+### 0:55-1:35 - The solution
 
-1. Open **Workflows**.
-2. Select the resume-to-onboarding workflow.
-3. Press **Run Workflow**.
-4. Narrate the animated handoff from Recruiter to Human Approval, Sales, and Customer Support.
-5. At the approval pause, choose **Approve** to resume.
-6. Point to the live execution log and completed nodes.
+**Say:**
 
-Suggested line: “This is the difference between several AI features and an AI workforce: each handoff is observable, intentional, and interruptible.”
+“WorkforceOS is an operating system for AI employees. Each employee has a role, work queue, status, and measurable performance. A Workforce Engine passes structured work between them, while human approval gates keep people in control of consequential decisions.”
 
-## 2:40–3:00 — Outcomes and close
+“Our wedge is recruiting. Maya, the AI Recruiter, turns a PDF resume into structured evidence and a recommendation. A human approves the candidate. Then Theo in Sales and Nora in Customer Support can receive the next onboarding tasks automatically.”
 
-1. Open **Analytics** and point to throughput, time reclaimed, and success-rate trends.
-2. Briefly show the responsive navigation on a narrow viewport.
+### 1:35-2:05 - Why it is different
 
-Close with: “WorkforceOS turns specialized AI employees into a coordinated, accountable operating model. The MVP is local-first today, with clear seams for durable workflows, integrations, and multi-tenant collaboration.”
+**Say:**
 
-## Fallback if the AI project has no API credits
+“A chatbot answers one prompt. A generic automation tool connects boxes. WorkforceOS models the organization itself: who is working, what they produced, why work is waiting, where a person must decide, and what happened next.”
 
-Use the seeded candidate pipeline and the Workflow Engine simulation. Be direct: “The UI, validation, structured-output route, and error states are live; this environment needs API credits to perform a new model analysis.” Do not claim a model call succeeded if it did not.
+“The key idea is not autonomous AI at any cost. It is observable AI collaboration with human judgment built into the workflow.”
+
+### 2:05-2:30 - Business and expansion
+
+**Say:**
+
+“We would sell this as a workspace subscription with AI-employee packs and usage-based execution. Recruiting is the entry point for startups, agencies, and lean HR teams; the same workforce layer then expands into sales, support, finance, and operations. Let me show the complete loop working.”
+
+## 2:30-6:30 - Working MVP demo
+
+### 2:30-2:55 - Command center
+
+**Click:** Start on **Dashboard / Overview**.
+
+**Say:**
+
+“This is the command center. I can see active AI employees, current work, approvals, and recent activity in one place. I can also assign new work directly, but I will start with an actual recruiting task.”
+
+**Click:** Open **AI Employees**, then **Recruiter**.
+
+### 2:55-4:10 - Live Recruiter analysis
+
+**Click:** Open **Resume Review** and upload the prepared PDF.
+
+**Say while it runs:**
+
+“The browser sends the PDF to our internal Next.js API. On the server we enforce the file limit, validate the PDF, extract bounded text, and call the OpenAI Responses API. The key never reaches the browser. We require a strict JSON schema and validate the result again before rendering it.”
+
+**Point out:** upload progress and loading state, then candidate name, experience, AI score, decision, skills, strengths, weaknesses, reasoning, and recommended role.
+
+**Say:**
+
+“This is structured evidence a workflow can use—not an untraceable paragraph of generated text. The score supports the reviewer; it does not make the final hiring decision.”
+
+**Click:** Open **Candidates**, select the newly analyzed candidate, and briefly show the detail drawer.
+
+### 4:10-4:50 - Human decision
+
+**Click:** Open **Approvals** and choose **Request interview** or **Approve** on a pending candidate.
+
+**Say:**
+
+“Sensitive decisions stop here. The reviewer can approve, reject, or request an interview, and the state updates immediately and persists locally for this MVP.”
+
+“This is our control model: AI prepares and routes the work; a person owns the decision.”
+
+### 4:50-5:55 - Workforce Engine
+
+**Click:** Open **Workflows**, select the resume-to-onboarding workflow, and press **Run Workflow**.
+
+**Say:**
+
+“Now the same work becomes a cross-functional process. Watch the status move from Recruiter to a human approval gate.”
+
+**At the pause:** Point to **Waiting** and the live execution log, then click **Approve**.
+
+**Say:**
+
+“The workflow is intentionally paused, visible, and interruptible. Once approved, Theo prepares the onboarding communication and Nora prepares the welcome package. Every handoff and state transition appears in the live log.”
+
+**Point out:** completed nodes, animated edges, and the finished execution.
+
+### 5:55-6:30 - Outcome visibility
+
+**Click:** Open **Analytics**.
+
+**Say:**
+
+“Finally, managers see outcomes: throughput, success rate, time reclaimed, utilization, and approval activity. Reports can be filtered and exported, so AI work is managed like business operations rather than hidden inside separate chats.”
+
+## 6:30-7:00 - Close
+
+**Say:**
+
+“This MVP proves the full product loop: real resume analysis, a human decision, an observable multi-agent handoff, and measurable outcomes.”
+
+“Today, product state is local and cross-employee execution is simulated transparently. The architecture already separates the UI, API, AI service, and workflow domain, so the production path is authentication, durable storage, queued execution, integrations, and audit logs.”
+
+“WorkforceOS turns AI tools into an accountable workforce—specialized, coordinated, and always under human control.”
+
+Stop. Do not fill the remaining silence. Invite questions.
+
+## Recovery plan during the live demo
+
+### If resume analysis takes more than 15 seconds
+
+Keep the upload running and say: “While the server completes the analysis, I’ll show how an already processed candidate moves through the rest of the system.” Open the seeded candidate pipeline, complete an approval, and continue to the Workforce Engine. Return to the result only if time remains.
+
+### If OpenAI returns a configuration, quota, or network error
+
+Say: “The interface is showing the production recovery state rather than inventing a result. The server-side validation and API boundary are live; I’ll continue with a previously processed candidate so you can see the downstream workflow.” Then use seeded data. Never claim that a failed model request succeeded.
+
+### If the production site is unavailable
+
+Switch once to the already-running local build. If that also fails, use the backup recording and narrate the same click path. Do not spend presentation time debugging infrastructure.
+
+### If time is running out
+
+Skip the candidate drawer and Analytics. Always preserve the resume result, human approval, Workforce Engine run, and final sentence.

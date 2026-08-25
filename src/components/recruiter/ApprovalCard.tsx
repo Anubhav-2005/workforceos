@@ -1,5 +1,6 @@
 import { CalendarDays, Check, X } from "lucide-react";
 import type { Candidate, HumanStatus } from "@/lib/recruiter-data";
+import AnalysisSourceBadge from "@/components/recruiter/AnalysisSourceBadge";
 import ScoreBadge from "@/components/recruiter/ScoreBadge";
 
 export default function ApprovalCard({
@@ -14,7 +15,10 @@ export default function ApprovalCard({
     <article className="rounded-xl border border-slate-100 p-4 transition hover:border-slate-200 hover:bg-slate-50">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-bold text-slate-800">{candidate.name}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-bold text-slate-800">{candidate.name}</p>
+            <AnalysisSourceBadge source={candidate.analysisSource} />
+          </div>
           <p className="mt-1 text-xs text-slate-500">
             {candidate.role} · {candidate.experience}
           </p>

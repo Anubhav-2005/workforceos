@@ -3,27 +3,10 @@
 import { useState, type FormEvent } from "react";
 import { Check, ShieldCheck } from "lucide-react";
 import { useDashboard } from "@/components/dashboard/DashboardShell";
-import { useLocalStorageState } from "@/lib/useLocalStorageState";
-
-type WorkspaceSettings = {
-  workspaceName: string;
-  approvals: boolean;
-  summaries: boolean;
-};
-
-const defaultSettings: WorkspaceSettings = {
-  workspaceName: "Acme Studio",
-  approvals: true,
-  summaries: true,
-};
+import type { WorkspaceSettings } from "@/components/dashboard/shell-types";
 
 export default function SettingsPage() {
-  const { notify } = useDashboard();
-  const [savedSettings, setSavedSettings, hydrated] = useLocalStorageState<WorkspaceSettings>(
-    "workforceos-settings",
-    defaultSettings,
-    { validate: isWorkspaceSettings },
-  );
+  const { notify, settings: savedSettings, settingsHydrated, setSettings } = useDashboard();
   const [draft, setDraft] = useState<WorkspaceSettings | null>(null);
   const settings = draft ?? savedSettings;
   const validWorkspaceName = settings.workspaceName.trim().length > 1;
@@ -37,12 +20,12 @@ export default function SettingsPage() {
     if (!validWorkspaceName) return;
 
     const nextSettings = { ...settings, workspaceName: settings.workspaceName.trim() };
-    setSavedSettings(nextSettings);
+    setSettings(nextSettings);
     setDraft(null);
     notify(`${nextSettings.workspaceName} settings saved locally.`);
   };
 
-  if (!hydrated) {
+  if (!settingsHydrated) {
     return (
       <div className="mx-auto max-w-[900px] animate-pulse px-5 py-8 sm:px-8 lg:px-10">
         <div className="h-4 w-24 rounded bg-indigo-100" />
@@ -150,15 +133,5 @@ function SettingToggle({
         />
       </button>
     </div>
-  );
-}
-
-function isWorkspaceSettings(value: unknown): value is WorkspaceSettings {
-  if (!value || typeof value !== "object") return false;
-  const settings = value as Record<string, unknown>;
-  return (
-    typeof settings.workspaceName === "string" &&
-    typeof settings.approvals === "boolean" &&
-    typeof settings.summaries === "boolean"
   );
 }

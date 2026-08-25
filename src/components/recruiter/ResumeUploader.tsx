@@ -1,18 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, Eye, FileText, LoaderCircle, RefreshCw, UploadCloud } from "lucide-react";
+import { AlertCircle, Eye, FileText, FlaskConical, LoaderCircle, RefreshCw, UploadCloud } from "lucide-react";
 import { analyzeResume } from "@/services/recruiter";
 import type { RecruiterAnalysis } from "@/types/recruiter";
 
 type ResumeUploaderProps = {
   onAnalyzed: (analysis: RecruiterAnalysis) => void;
   onError: (message: string) => void;
+  onUseDemo: () => void;
 };
 
 const MAX_RESUME_BYTES = 5 * 1024 * 1024;
 
-export default function ResumeUploader({ onAnalyzed, onError }: ResumeUploaderProps) {
+export default function ResumeUploader({ onAnalyzed, onError, onUseDemo }: ResumeUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -174,13 +175,25 @@ export default function ResumeUploader({ onAnalyzed, onError }: ResumeUploaderPr
             <p className="text-xs leading-5 text-rose-700">{errorMessage}</p>
           </div>
           {lastFile && (
-            <button
-              type="button"
-              onClick={() => void processFile(lastFile)}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-white px-3 py-2 text-[10px] font-bold text-rose-700 shadow-sm transition hover:bg-rose-100"
-            >
-              <RefreshCw size={12} /> Try again
-            </button>
+            <div className="flex flex-wrap gap-2 sm:justify-end">
+              <button
+                type="button"
+                onClick={() => void processFile(lastFile)}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-white px-3 py-2 text-[10px] font-bold text-rose-700 shadow-sm transition hover:bg-rose-100"
+              >
+                <RefreshCw size={12} /> Try again
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setErrorMessage(null);
+                  onUseDemo();
+                }}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-[10px] font-bold text-white shadow-sm transition hover:bg-slate-800"
+              >
+                <FlaskConical size={12} /> Use demo result
+              </button>
+            </div>
           )}
         </div>
       )}

@@ -14,13 +14,13 @@
 
    ```text
    OPENAI_API_KEY=...
-   NEXT_PUBLIC_APP_URL=https://your-project.vercel.app
+   NEXT_PUBLIC_APP_URL=https://workforceos-bay.vercel.app
    ```
 
 4. Deploy the project.
 5. If Vercel assigns a different final URL, update `NEXT_PUBLIC_APP_URL` and redeploy.
 
-`OPENAI_API_KEY` must be entered in Vercel; do not add `.env.local` to Git or paste a key into source code. No `vercel.json` is needed: this project uses the standard Next.js runtime, and the resume route explicitly declares its Node.js runtime and 60-second duration.
+`OPENAI_API_KEY` must be entered in Vercel; do not add `.env.local` to Git or paste a key into source code. No `vercel.json` is needed: this project uses the standard Next.js runtime, and the resume route explicitly declares its Node.js runtime and 60-second duration. The PDF parser and its native canvas dependency are kept external in `next.config.ts` so Vercel includes the correct Linux runtime files.
 
 ## Post-deploy verification
 

@@ -4,6 +4,8 @@ import type { Candidate } from "@/lib/recruiter-data";
 type RecruiterOverviewTabProps = {
   candidates: Candidate[];
   pendingCount: number;
+  reviewedCount: number;
+  decisionedCount: number;
   averageScore: number;
   onOpenCandidate: (candidate: Candidate) => void;
   onOpenApprovals: () => void;
@@ -13,6 +15,8 @@ type RecruiterOverviewTabProps = {
 export default function RecruiterOverviewTab({
   candidates,
   pendingCount,
+  reviewedCount,
+  decisionedCount,
   averageScore,
   onOpenCandidate,
   onOpenApprovals,
@@ -45,7 +49,7 @@ export default function RecruiterOverviewTab({
             />
             <TaskRow
               title="Prepare interview-ready shortlist"
-              detail="6 candidates waiting for your decision"
+              detail={`${pendingCount} candidate${pendingCount === 1 ? "" : "s"} waiting for your decision`}
               value={68}
             />
             <TaskRow title="Validate role skill requirements" detail="Job brief updated 22 minutes ago" value={92} />
@@ -83,7 +87,9 @@ export default function RecruiterOverviewTab({
           <p className="mt-2 text-3xl font-bold tracking-[-0.05em]">
             42<span className="text-base text-slate-400"> tasks</span>
           </p>
-          <p className="mt-1 text-xs text-slate-400">18 resumes reviewed · 6 decisions prepared</p>
+          <p className="mt-1 text-xs text-slate-400">
+            {reviewedCount} resumes reviewed · {decisionedCount} human decisions recorded
+          </p>
           <div className="mt-6 flex h-16 items-end gap-2">
             {[44, 62, 54, 76, 68, 84, 92].map((height, index) => (
               <div key={height} className="flex-1">

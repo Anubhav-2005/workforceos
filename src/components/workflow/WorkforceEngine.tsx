@@ -24,7 +24,7 @@ const selectedWorkflowStorageKey = "workforceos-selected-workflow";
 const runtimeStorageKey = "workforceos-workflow-runtime";
 
 export default function WorkforceEngine() {
-  const { notify } = useDashboard();
+  const { notify, settings } = useDashboard();
   const [workflows, setWorkflows, workflowsHydrated] = useLocalStorageState<WorkflowDefinition[]>(
     workflowsStorageKey,
     initialWorkflows,
@@ -44,7 +44,7 @@ export default function WorkforceEngine() {
     () => workflows.find((workflow) => workflow.id === selectedId) ?? workflows[0] ?? null,
     [selectedId, workflows],
   );
-  const simulation = useWorkflowSimulation({ setRuntime, notify });
+  const simulation = useWorkflowSimulation({ setRuntime, notify, requireApproval: settings.approvals });
 
   const selectWorkflow = (id: string) => {
     setSelectedId(id);

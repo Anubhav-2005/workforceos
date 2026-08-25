@@ -1,5 +1,4 @@
 import OpenAI from "openai";
-import { PDFParse } from "pdf-parse";
 import { EnvironmentConfigurationError } from "@/lib/env";
 import { getOpenAIClient } from "@/lib/openai";
 import { buildRecruiterResumeInput, RECRUITER_SYSTEM_PROMPT } from "@/lib/prompts/recruiterPrompt";
@@ -92,7 +91,9 @@ async function analyzeResumeText(resumeText: string): Promise<RecruiterAnalysis>
 }
 
 async function extractPdfText(data: Buffer) {
-  const parser = new PDFParse({ data });
+  const { CanvasFactory } = await import("pdf-parse/worker");
+  const { PDFParse } = await import("pdf-parse");
+  const parser = new PDFParse({ data, CanvasFactory });
   try {
     const result = await parser.getText();
     return result.text
@@ -147,7 +148,7 @@ function handleError(error: unknown) {
   }
   if (error instanceof RecruiterAnalysisError) return jsonError(error.message, error.reason === "refusal" ? 422 : 502);
   if (error instanceof EnvironmentConfigurationError && error.variable === "OPENAI_API_KEY") {
-    return jsonError("Resume analysis is not configured. Add OPENAI_API_KEY to .env.local.", 503);
+    return jsonError("Resume analysis is not configured. Add OPENAI_API_KEY to the server environment.", 503);
   }
   if (error instanceof Error && error.message.startsWith("The AI returned")) return jsonError(error.message, 502);
   return jsonError("Unable to read this PDF resume. Please upload another file.", 422);

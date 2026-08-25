@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { Activity, ArrowUpRight, Check, CheckCircle2, Clock3, MoreHorizontal, Play, ShieldCheck } from "lucide-react";
 import { agents } from "@/lib/dashboard-data";
 import { useDashboard } from "@/components/dashboard/DashboardShell";
@@ -10,11 +10,23 @@ import OverviewInsights from "@/components/dashboard/OverviewInsights";
 import { ActivityRow, AgentOverviewCard, Metric } from "@/components/dashboard/OverviewWidgets";
 
 export default function OverviewPage() {
-  const { tasks, notify } = useDashboard();
+  const { tasks, notify, settings } = useDashboard();
   const searchParams = useSearchParams();
   const [running, setRunning] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [activityMenu, setActivityMenu] = useState(false);
+  const hasHydrated = useSyncExternalStore(
+    () => () => undefined,
+    () => true,
+    () => false,
+  );
+  const today = hasHydrated
+    ? new Intl.DateTimeFormat("en-IN", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      }).format(new Date())
+    : "Today";
   const query = searchParams.get("search")?.toLowerCase() ?? "";
   const visibleActivity = useMemo(
     () => tasks.filter((item) => item.action.toLowerCase().includes(query) || item.agent.toLowerCase().includes(query)),
@@ -23,6 +35,10 @@ export default function OverviewPage() {
   const shownActivity = showAll ? visibleActivity : visibleActivity.slice(0, 4);
 
   const runStandup = () => {
+    if (!settings.summaries) {
+      notify("Daily workforce summaries are disabled in Settings.", "info");
+      return;
+    }
     setRunning(true);
     window.setTimeout(() => {
       setRunning(false);
@@ -34,7 +50,7 @@ export default function OverviewPage() {
     <div className="mx-auto max-w-[1480px] px-5 py-8 sm:px-8 lg:px-10">
       <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div>
-          <p className="text-sm font-medium text-indigo-600">Friday, July 25</p>
+          <p className="text-sm font-medium text-indigo-600">{today}</p>
           <h1 className="mt-1 text-3xl font-bold tracking-[-0.045em] text-slate-900 sm:text-[34px]">
             Good morning, Anubhav{" "}
             <span className="inline-block origin-bottom-right animate-[wave_2s_ease-in-out_infinite]">👋</span>
@@ -86,11 +102,11 @@ export default function OverviewPage() {
         <Metric
           href="/dashboard/employees/recruiter"
           title="Human approvals"
-          value="8"
-          trend="3 new"
+          value="1"
+          trend="1 new"
           icon={<ShieldCheck size={19} />}
           color="amber"
-          footer="Awaiting a decision"
+          footer="Candidate awaiting a decision"
         />
         <Metric
           href="/dashboard/analytics"

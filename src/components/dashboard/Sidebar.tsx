@@ -135,13 +135,16 @@ function SidebarContent({
 
       <div className="mt-8 border-t border-slate-100 pt-6">
         <p className="px-3 pb-2 text-[10px] font-bold tracking-[0.16em] text-slate-400 uppercase">Manage</p>
-        <button
-          type="button"
-          onClick={() => onNotify("Your local team has 4 active members.")}
+        <Link
+          href="/dashboard/employees"
+          onClick={() => {
+            onNavigate();
+            onNotify("Opened your active AI team.");
+          }}
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
         >
           <Users size={18} /> Team
-        </button>
+        </Link>
         <Link
           href="/dashboard/settings"
           onClick={onNavigate}
