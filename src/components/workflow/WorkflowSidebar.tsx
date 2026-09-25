@@ -13,6 +13,7 @@ type WorkflowSidebarProps = {
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
   connected?: boolean;
+  canManage?: boolean;
 };
 
 export default function WorkflowSidebar(props: WorkflowSidebarProps) {
@@ -44,14 +45,16 @@ export default function WorkflowSidebar(props: WorkflowSidebarProps) {
           <p className="text-sm font-bold">Workflows</p>
           <p className="mt-1 text-[10px] text-slate-500">Your collaboration automations.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          aria-label="Create workflow"
-          className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-600 text-white transition hover:bg-indigo-700"
-        >
-          <Plus size={16} />
-        </button>
+        {(props.canManage ?? true) && (
+          <button
+            type="button"
+            onClick={() => setCreating(true)}
+            aria-label="Create workflow"
+            className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-600 text-white transition hover:bg-indigo-700"
+          >
+            <Plus size={16} />
+          </button>
+        )}
       </div>
 
       {creating && (
@@ -189,35 +192,37 @@ export default function WorkflowSidebar(props: WorkflowSidebarProps) {
                       </span>
                     </span>
                   </button>
-                  <div className="mt-3 flex gap-1 border-t border-slate-100 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingId(workflow.id);
-                        setEditingName(workflow.name);
-                      }}
-                      aria-label={`Edit ${workflow.name}`}
-                      className="grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-indigo-600"
-                    >
-                      <Edit3 size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => props.onDuplicate(workflow.id)}
-                      aria-label={`Duplicate ${workflow.name}`}
-                      className="grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-indigo-600"
-                    >
-                      <Copy size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeletingId(workflow.id)}
-                      aria-label={`Delete ${workflow.name}`}
-                      className="ml-auto grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
+                  {(props.canManage ?? true) && (
+                    <div className="mt-3 flex gap-1 border-t border-slate-100 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingId(workflow.id);
+                          setEditingName(workflow.name);
+                        }}
+                        aria-label={`Edit ${workflow.name}`}
+                        className="grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-indigo-600"
+                      >
+                        <Edit3 size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => props.onDuplicate(workflow.id)}
+                        aria-label={`Duplicate ${workflow.name}`}
+                        className="grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-white hover:text-indigo-600"
+                      >
+                        <Copy size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeletingId(workflow.id)}
+                        aria-label={`Delete ${workflow.name}`}
+                        className="ml-auto grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -226,13 +231,15 @@ export default function WorkflowSidebar(props: WorkflowSidebarProps) {
           <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center">
             <Workflow className="mx-auto text-slate-300" size={18} />
             <p className="mt-2 text-xs font-semibold text-slate-500">No workflows yet</p>
-            <button
-              type="button"
-              onClick={() => setCreating(true)}
-              className="mt-2 text-[10px] font-semibold text-indigo-600"
-            >
-              Create your first workflow
-            </button>
+            {(props.canManage ?? true) && (
+              <button
+                type="button"
+                onClick={() => setCreating(true)}
+                className="mt-2 text-[10px] font-semibold text-indigo-600"
+              >
+                Create your first workflow
+              </button>
+            )}
           </div>
         )}
       </div>

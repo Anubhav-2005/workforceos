@@ -14,9 +14,11 @@ const icons = {
 export default function ConnectedWorkflowCanvas({
   workflow,
   run,
+  onEdit,
 }: {
   workflow: ServerWorkflow;
   run: ServerWorkflowRun | null;
+  onEdit?: () => void;
 }) {
   const sorted = [...workflow.nodes].sort((a, b) => a.positionX - b.positionX);
   const statuses = new Map(run?.steps.map((step) => [step.nodeKey, step.status]) ?? []);
@@ -30,6 +32,15 @@ export default function ConnectedWorkflowCanvas({
         <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold text-indigo-700">
           {sorted.length} steps
         </span>
+        {onEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="ml-3 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+          >
+            Edit steps
+          </button>
+        )}
       </div>
       <div className="overflow-x-auto p-5 sm:p-6">
         <div className="flex min-w-max items-center gap-3 py-2">

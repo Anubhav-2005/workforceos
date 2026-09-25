@@ -15,6 +15,7 @@ type WorkflowControlsProps = {
   approvalMessage?: string;
   resumeQueued?: boolean;
   busy?: boolean;
+  canManage?: boolean;
 };
 
 export default function WorkflowControls({
@@ -29,6 +30,7 @@ export default function WorkflowControls({
   approvalMessage,
   resumeQueued,
   busy,
+  canManage = true,
 }: WorkflowControlsProps) {
   if (!workflow) return null;
   const running = phase === "running" && !resumeQueued;
@@ -45,7 +47,8 @@ export default function WorkflowControls({
             role="switch"
             aria-checked={workflow.enabled}
             onClick={onToggle}
-            className={`relative h-7 w-12 rounded-full transition ${workflow.enabled ? "bg-indigo-600" : "bg-slate-200"}`}
+            disabled={!canManage}
+            className={`relative h-7 w-12 rounded-full transition disabled:cursor-not-allowed ${workflow.enabled ? "bg-indigo-600" : "bg-slate-200"}`}
             aria-label={`${workflow.enabled ? "Disable" : "Enable"} ${workflow.name}`}
           >
             <span

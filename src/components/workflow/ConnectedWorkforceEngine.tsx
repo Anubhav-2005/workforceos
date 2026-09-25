@@ -6,6 +6,7 @@ import { Clock3, Play, ShieldCheck, TriangleAlert, Workflow } from "lucide-react
 import { useDashboard } from "@/components/dashboard/DashboardShell";
 import type { WorkflowDefinition, WorkflowLogEntry, WorkflowPhase } from "@/types/workflow";
 import ConnectedWorkflowCanvas from "@/components/workflow/ConnectedWorkflowCanvas";
+import ConnectedWorkflowEditor from "@/components/workflow/ConnectedWorkflowEditor";
 import type { ServerWorkflow, ServerWorkflowRun } from "@/components/workflow/server-types";
 import WorkflowControls from "@/components/workflow/WorkflowControls";
 import WorkflowLog from "@/components/workflow/WorkflowLog";
@@ -14,12 +15,15 @@ import WorkflowSidebar from "@/components/workflow/WorkflowSidebar";
 type CandidateOption = { id: string; name: string; analyses: unknown[] };
 
 export default function ConnectedWorkforceEngine() {
-  const { notify } = useDashboard();
+  const { notify, workspaceRole } = useDashboard();
+  const canManage = ["Owner", "Admin", "Manager"].includes(workspaceRole ?? "");
   const [workflows, setWorkflows] = useState<ServerWorkflow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [run, setRun] = useState<ServerWorkflowRun | null>(null);
   const [history, setHistory] = useState<ServerWorkflowRun[]>([]);
   const [candidates, setCandidates] = useState<CandidateOption[]>([]);
+  const [employees, setEmployees] = useState<{ id: string; name: string; role: string }[]>([]);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [candidateId, setCandidateId] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -39,9 +43,10 @@ export default function ConnectedWorkforceEngine() {
 
   const load = useCallback(async () => {
     try {
-      const [workflowResponse, candidateResponse] = await Promise.all([
+      const [workflowResponse, candidateResponse, employeeResponse] = await Promise.all([
         fetch("/api/workflows", { cache: "no-store" }),
         fetch("/api/candidates?limit=50", { cache: "no-store" }),
+        fetch("/api/employees", { cache: "no-store" }),
       ]);
       const workflowPayload: unknown = await workflowResponse.json();
       const candidatePayload: unknown = await candidateResponse.json();
@@ -55,6 +60,12 @@ export default function ConnectedWorkforceEngine() {
           .filter((item) => item.analyses.length > 0);
         setCandidates(options);
         setCandidateId((current) => current || options[0]?.id || "");
+      }
+      if (employeeResponse.ok) {
+        const employeePayload: unknown = await employeeResponse.json();
+        if (isObject(employeePayload) && Array.isArray(employeePayload.employees)) {
+          setEmployees(employeePayload.employees.filter(isEmployeeOption));
+        }
       }
       setError("");
     } catch (cause) {
@@ -209,6 +220,7 @@ export default function ConnectedWorkforceEngine() {
       if (!response.ok || !isObject(payload) || !isObject(payload.workflow))
         throw new Error(getError(payload, "Could not create workflow."));
       await refresh(String(payload.workflow.id));
+      setEditorOpen(true);
       notify("Draft workflow created.");
     } catch (cause) {
       notify(cause instanceof Error ? cause.message : "Could not create workflow.", "error");
@@ -226,8 +238,10 @@ export default function ConnectedWorkforceEngine() {
       if (!response.ok) throw new Error(getError(payload, "Could not update workflow."));
       await refresh(id);
       notify("Workflow updated.");
+      return true;
     } catch (cause) {
       notify(cause instanceof Error ? cause.message : "Could not update workflow.", "error");
+      return false;
     }
   };
 
@@ -331,13 +345,15 @@ export default function ConnectedWorkforceEngine() {
           </h1>
           <p className="mt-2 text-sm text-slate-500">Persisted steps, visible handoffs, and human decisions.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => void createWorkflow("New collaboration workflow")}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-semibold text-white hover:bg-indigo-700"
-        >
-          <Workflow size={17} /> Create workflow
-        </button>
+        {canManage && (
+          <button
+            type="button"
+            onClick={() => void createWorkflow("New collaboration workflow")}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-semibold text-white hover:bg-indigo-700"
+          >
+            <Workflow size={17} /> Create workflow
+          </button>
+        )}
       </div>
       {error && (
         <div
@@ -355,6 +371,7 @@ export default function ConnectedWorkforceEngine() {
           workflows={sidebarWorkflows}
           selectedId={selected?.id ?? null}
           connected
+          canManage={canManage}
           onSelect={(id) => {
             runVersion.current += 1;
             setSelectedId(id);
@@ -404,6 +421,7 @@ export default function ConnectedWorkforceEngine() {
               }}
               phase={phase}
               connected
+              canManage={canManage}
               busy={busy}
               resumeQueued={run?.status === "Queued"}
               approvalMessage="Execution is paused on a persisted approval record. A reviewer must decide before it can continue."
@@ -416,7 +434,11 @@ export default function ConnectedWorkforceEngine() {
                 setRun(null);
               }}
             />
-            <ConnectedWorkflowCanvas workflow={selected} run={run} />
+            <ConnectedWorkflowCanvas
+              workflow={selected}
+              run={run}
+              onEdit={canManage ? () => setEditorOpen(true) : undefined}
+            />
             {run?.error && (
               <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
                 {run.error}
@@ -465,7 +487,22 @@ export default function ConnectedWorkforceEngine() {
           </div>
         )}
       </div>
+      {editorOpen && selected && (
+        <ConnectedWorkflowEditor
+          key={selected.id}
+          workflow={selected}
+          employees={employees}
+          onClose={() => setEditorOpen(false)}
+          onSave={(graph) => patchWorkflow(selected.id, { graph })}
+        />
+      )}
     </div>
+  );
+}
+
+function isEmployeeOption(value: unknown): value is { id: string; name: string; role: string } {
+  return (
+    isObject(value) && typeof value.id === "string" && typeof value.name === "string" && typeof value.role === "string"
   );
 }
 
