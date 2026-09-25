@@ -54,7 +54,9 @@ export default function ConnectedRecruiterDashboard() {
       const [candidateResponse, recentResponse, pendingResponse, summaryResponse] = await Promise.all([
         fetch(`/api/candidates?limit=${pageSize}&page=${candidatePage}`, { cache: "no-store" }),
         fetch("/api/candidates?limit=4", { cache: "no-store" }),
-        fetch(`/api/candidates?status=ReviewRequired&limit=${pageSize}&page=${pendingPage}`, { cache: "no-store" }),
+        fetch(`/api/candidates?status=ReviewRequired&approvalStatus=Pending&limit=${pageSize}&page=${pendingPage}`, {
+          cache: "no-store",
+        }),
         fetch("/api/recruiter/summary", { cache: "no-store" }),
       ]);
       const [candidatePayload, recentPayload, pendingPayload, summaryPayload]: unknown[] = await Promise.all([

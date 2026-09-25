@@ -25,6 +25,7 @@ export async function GET(request: Request) {
     const limit = Math.max(1, Math.min(50, Number(params.get("limit") ?? 20) || 20));
     const search = params.get("search")?.trim().slice(0, 120) || null;
     const rawStatus = params.get("status");
+    const pendingApprovalOnly = params.get("approvalStatus") === "Pending";
     const scoreFrom = params.get("scoreFrom");
     const scoreTo = params.get("scoreTo");
     const since = params.get("since");
@@ -40,6 +41,7 @@ export async function GET(request: Request) {
           }
         : {}),
       ...(rawStatus && statuses.includes(rawStatus as CandidateStatus) ? { status: rawStatus as CandidateStatus } : {}),
+      ...(pendingApprovalOnly ? { approvals: { some: { status: "Pending" } }, analyses: { some: {} } } : {}),
       ...(scoreFrom || scoreTo
         ? {
             aiScore: {
@@ -62,6 +64,7 @@ export async function GET(request: Request) {
         include: {
           analyses: { orderBy: { createdAt: "desc" }, take: 1 },
           approvals: {
+            ...(pendingApprovalOnly ? { where: { status: "Pending" as const } } : {}),
             orderBy: { requestedAt: "desc" },
             take: 1,
             select: { id: true, status: true, requestedAt: true },
