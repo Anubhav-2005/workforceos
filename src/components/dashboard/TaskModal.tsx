@@ -10,24 +10,49 @@ type TaskModalProps = {
   setDraft: Dispatch<SetStateAction<TaskDraft>>;
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  employees?: { id: string; name: string; role: string }[];
 };
 
-export default function TaskModal({ draft, setDraft, onClose, onSubmit }: TaskModalProps) {
+export default function TaskModal({ draft, setDraft, onClose, onSubmit, employees }: TaskModalProps) {
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     nameInputRef.current?.focus();
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
-    const closeWithKeyboard = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+    const handleKeyboard = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusable = formRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!formRef.current?.contains(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
-    document.addEventListener("keydown", closeWithKeyboard);
+    document.addEventListener("keydown", handleKeyboard);
 
     return () => {
       document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", closeWithKeyboard);
+      document.removeEventListener("keydown", handleKeyboard);
+      previouslyFocused?.focus();
     };
   }, [onClose]);
 
@@ -41,7 +66,11 @@ export default function TaskModal({ draft, setDraft, onClose, onSubmit }: TaskMo
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <form onSubmit={onSubmit} className="my-auto w-full max-w-lg rounded-3xl bg-white p-5 shadow-2xl sm:p-6">
+      <form
+        ref={formRef}
+        onSubmit={onSubmit}
+        className="my-auto w-full max-w-lg rounded-3xl bg-white p-5 shadow-2xl sm:p-6"
+      >
         <div className="flex items-start justify-between gap-4">
           <div>
             <p id="new-work-title" className="text-lg font-bold tracking-[-0.03em]">
@@ -81,7 +110,7 @@ export default function TaskModal({ draft, setDraft, onClose, onSubmit }: TaskMo
                 onChange={(event) => setDraft((current) => ({ ...current, assignTo: event.target.value }))}
                 className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
               >
-                {agents.map((agent) => (
+                {(employees ?? agents).map((agent) => (
                   <option key={agent.id} value={agent.id}>
                     {agent.name} — {agent.role}
                   </option>
@@ -126,7 +155,7 @@ export default function TaskModal({ draft, setDraft, onClose, onSubmit }: TaskMo
           </button>
           <button
             type="submit"
-            disabled={!draft.name.trim()}
+            disabled={!draft.name.trim() || (employees !== undefined && employees.length === 0)}
             className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
           >
             Create task

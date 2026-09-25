@@ -1,84 +1,43 @@
 # Architecture
 
-WorkforceOS uses a small, explicit architecture suited to a two-day MVP while leaving clean seams for production services.
+WorkforceOS has two explicit operating modes. The original browser-local demo runs when `DATABASE_URL` is absent and is marked with an amber banner. The connected mode uses PostgreSQL for shared, tenant-scoped work and requires sign-in. Neither mode claims that an external email or ATS action has happened.
 
 ## System view
 
 ```mermaid
 flowchart LR
-    U["User"] --> UI["Next.js App Router UI"]
-    UI --> LS["Local browser state"]
-    UI --> API["Recruiter route handler"]
-    API --> V["PDF validation"]
-    V --> P["Server-side text extraction"]
-    P --> OAI["OpenAI Responses API"]
-    OAI --> S["Strict hiring-analysis schema"]
-    S --> UI
-    UI --> W["Local workflow simulation"]
-    W --> H["Human approval"]
-    H --> W
+    Browser["Next.js App Router UI"] --> Routes["Authenticated route handlers"]
+    Routes --> Auth["Opaque HTTP-only session"]
+    Routes --> DB["PostgreSQL via Prisma"]
+    Routes --> PDF["Bounded PDF extraction"]
+    PDF --> AI["OpenAI Responses API"]
+    AI --> Schema["Strict structured output + runtime validation"]
+    Schema --> DB
+    DB --> Runner["Persisted workflow step runner"]
+    Runner --> Approval["Human approval gate"]
+    Approval --> Runner
+    Browser -. "DATABASE_URL absent" .-> Demo["Labeled localStorage demo"]
 ```
 
-## Application layers
+## Application boundaries
 
-### App Router
+- `src/app/dashboard` provides route boundaries and the shared shell. Server components select connected or demo screens; client components own interactions, dialogs, uploads, and animation.
+- `src/app/api/auth` creates and revokes opaque session tokens. Only a SHA-256 token hash is stored in the database; cookies are HTTP-only, SameSite Lax, and Secure in production. Workspace membership and role checks happen on each connected request.
+- `src/app/api/recruiter/analyze` accepts an authenticated multipart PDF, bounds the body before parsing, validates file signature and text, calls the Responses API through `src/lib/openai.ts`, validates its strict JSON output, and persists candidate/analysis/approval records. Raw PDF bytes are discarded after extraction.
+- `src/lib/workflows/graph.ts` validates graph structure before activation. `src/lib/workflows/runner.ts` claims one persisted node at a time, records step state, pauses for human approval, and resumes only after a recorded decision. AI employee nodes call the server-side model adapter; action nodes currently save drafts internally. No external connector is invoked.
+- Tasks are separate assignments. The task runner produces a saved AI draft and records success/failure. Analytics is derived from persisted tasks, approvals, executions, and token events; connected screens never show fabricated productivity numbers.
 
-Pages and route boundaries live in `src/app`. Each dashboard route has a small server component that provides metadata and renders the relevant feature component.
+## Data model
 
-### Dashboard shell
+The Prisma schema is in `prisma/schema.prisma`, with the initial migration in `prisma/migrations`. Core records include users, organizations, memberships, sessions, AI employees, tasks, task executions, workflows, nodes, edges, workflow executions and steps, approvals, candidates, resume analyses, activity, notifications, and audit logs. Each route scopes queries to the current organization. Candidate deletion removes linked candidate data and completed run history; active runs must be finished or cancelled first.
 
-`DashboardShell` owns navigation, shared notifications, the task modal, and locally persisted work activity. Interactive pages consume that state through a focused React context.
+The local demo path is intentionally separate. It uses browser `localStorage` for fictional candidates and simulated workflow interactions, so judges can inspect the UI without a database or API spend. It is not a shared workspace and cannot invoke the live AI route anonymously.
 
-### Recruiter domain
+## Security and limitations
 
-The Recruiter is split into tabs and reusable presentation components. Candidate state is persisted locally. Resume analysis crosses a service boundary:
-
-1. `ResumeUploader` validates the first client-side constraints.
-2. `services/recruiter.ts` sends the PDF to the internal API and reports upload progress.
-3. The route handler validates the request and PDF again.
-4. `pdf-parse` extracts bounded text on the server.
-5. The singleton OpenAI client sends a Responses API request with a strict JSON Schema.
-6. The server validates the returned JSON before sending it to the browser.
-
-### Workforce Engine
-
-Workflow definitions, runtime status, and execution logs are typed domain objects. The simulation hook advances nodes with short delays, pauses at human approval, and resumes or fails based on the decision.
-
-## Server and client boundaries
-
-- API keys, PDF parsing, prompts, and the OpenAI SDK client are server-only.
-- Browser APIs, local storage, file selection, animation, and interaction live in client components.
-- Client code communicates with OpenAI only through the internal `/api/recruiter/analyze` route.
-- Non-`NEXT_PUBLIC_` environment variables are never bundled for the browser.
-
-## Data and persistence
-
-The MVP stores tasks, settings, candidates, workflows, and the latest workflow run in `localStorage`. This removes account and database setup from the judging flow.
-
-The persistence hook validates stored data before using it. Invalid or inaccessible values fall back to safe defaults.
-
-## Security controls
-
-- 5 MB PDF limit
-- PDF MIME, extension, and signature checks
-- minimum extracted-text threshold
-- bounded resume text sent to the model
-- prompt-injection boundary for untrusted resume text
-- strict JSON Schema output
-- application-side response validation
-- request timeout and no automatic SDK retries
-- `store: false` on the OpenAI request
-- no-store API responses
-- per-instance request limiting
-- safe, non-sensitive error responses
-
-## Production evolution
-
-The current boundaries map directly to production services:
-
-- replace local storage with Postgres or another durable store;
-- move workflow simulation to a durable job runner;
-- use a shared distributed rate limiter;
-- add authentication and workspace authorization;
-- add encrypted object storage with a retention policy if original resumes must be retained;
-- add tracing, model evaluations, and cost monitoring.
+- Server-only environment variables protect database and OpenAI credentials; no secret is imported by client components.
+- Mutating routes check same-origin requests, input schemas, workspace membership, and role permissions.
+- PDFs are limited to 4 MB so multipart overhead remains under Vercel's body limit; pages and extracted characters are bounded.
+- Model output is untrusted data even when generated with strict JSON Schema. Hiring scores are decision support; human review is mandatory.
+- Requests use `store: false` with OpenAI. The app stores the structured analysis and audit metadata, but not the raw PDF.
+- The current limiter is in-memory per process, not distributed. For high-volume production use, add a shared limiter, independent job worker, idempotent retries, secret management for connectors, and operational alerting.

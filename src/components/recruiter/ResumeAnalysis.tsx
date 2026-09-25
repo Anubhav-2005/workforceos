@@ -72,7 +72,41 @@ export default function ResumeAnalysis({
         <p className="mt-3 text-xs leading-5 text-slate-600">
           <span className="font-semibold text-slate-800">Reasoning:</span> {analysis.reasoning}
         </p>
+        <p className="mt-3 text-[10px] text-slate-400">
+          AI assessment is decision support, not an automated hiring decision. A person must review the evidence.
+        </p>
       </div>
+
+      {analysis.jobMatch?.provided && (
+        <div className="mt-4 rounded-xl bg-white p-3">
+          <p className="text-[10px] font-bold tracking-[0.12em] text-slate-400 uppercase">
+            Match to {analysis.jobMatch.jobTitle || "the role"}
+          </p>
+          <p className="mt-2 text-sm font-bold text-indigo-600">{analysis.jobMatch.overallFitScore}% fit</p>
+          <p className="mt-1 text-xs leading-5 text-slate-600">{analysis.jobMatch.experienceMatch}</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <AnalysisList title="Strong matches" values={analysis.jobMatch.strongMatches} tone="text-emerald-600" />
+            <AnalysisList
+              title="Missing requirements"
+              values={analysis.jobMatch.missingRequirements}
+              tone="text-amber-600"
+            />
+          </div>
+          <p className="mt-4 text-xs leading-5 text-slate-600">
+            <span className="font-semibold text-slate-800">Interview recommendation:</span>{" "}
+            {analysis.jobMatch.interviewRecommendation}
+          </p>
+          {analysis.jobMatch.suggestedInterviewQuestions.length > 0 && (
+            <div className="mt-4">
+              <AnalysisList
+                title="Suggested interview questions"
+                values={analysis.jobMatch.suggestedInterviewQuestions}
+                tone="text-indigo-600"
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {(analysis.education.length > 0 || analysis.projects.length > 0) && (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">

@@ -1,7 +1,32 @@
+import { z } from "zod";
+
 export const recruiterDecisions = ["Hire", "Maybe", "Reject"] as const;
 
 export type RecruiterDecision = (typeof recruiterDecisions)[number];
 
+export type RecruiterJobCriteria = {
+  title: string;
+  description: string;
+  requiredSkills: string[];
+  preferredSkills: string[];
+  minimumYearsExperience: number | null;
+};
+
+export type RecruiterJobMatch = {
+  provided: boolean;
+  jobTitle: string;
+  overallFitScore: number;
+  skillsMatch: string[];
+  experienceMatch: string;
+  missingRequirements: string[];
+  strongMatches: string[];
+  interviewRecommendation: string;
+  suggestedInterviewQuestions: string[];
+  followUpQuestions: string[];
+};
+
+// Existing analyses in local workspaces have the original fields only. New AI
+// analyses add the optional evidence and job-match fields below.
 export type RecruiterAnalysis = {
   candidateName: string;
   email: string;
@@ -17,114 +42,78 @@ export type RecruiterAnalysis = {
   score: number;
   decision: RecruiterDecision;
   reasoning: string;
+  location?: string;
+  currentCompany?: string;
+  previousCompanies?: string[];
+  technicalSkills?: string[];
+  softSkills?: string[];
+  risks?: string[];
+  recommendedRoles?: string[];
+  experienceSummary?: string;
+  overallAssessment?: string;
+  jobMatch?: RecruiterJobMatch;
 };
 
-export const recruiterAnalysisJsonSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "candidateName",
-    "email",
-    "phone",
-    "yearsExperience",
-    "currentRole",
-    "skills",
-    "strengths",
-    "weaknesses",
-    "education",
-    "projects",
-    "recommendedRole",
-    "score",
-    "decision",
-    "reasoning",
-  ],
-  properties: {
-    candidateName: { type: "string" },
-    email: { type: "string" },
-    phone: { type: "string" },
-    yearsExperience: { type: "number" },
-    currentRole: { type: "string" },
-    skills: { type: "array", items: { type: "string" } },
-    strengths: { type: "array", items: { type: "string" } },
-    weaknesses: { type: "array", items: { type: "string" } },
-    education: { type: "array", items: { type: "string" } },
-    projects: { type: "array", items: { type: "string" } },
-    recommendedRole: { type: "string" },
-    score: { type: "number", minimum: 0, maximum: 100 },
-    decision: { type: "string", enum: recruiterDecisions },
-    reasoning: { type: "string" },
-  },
-} as const;
+const jobMatchSchema = z.strictObject({
+  provided: z.boolean(),
+  jobTitle: z.string(),
+  overallFitScore: z.number().min(0).max(100),
+  skillsMatch: z.array(z.string()),
+  experienceMatch: z.string(),
+  missingRequirements: z.array(z.string()),
+  strongMatches: z.array(z.string()),
+  interviewRecommendation: z.string(),
+  suggestedInterviewQuestions: z.array(z.string()),
+  followUpQuestions: z.array(z.string()),
+});
+
+// This one schema drives both OpenAI's strict response format and server-side
+// validation. Keep every property required for Structured Outputs.
+export const recruiterModelAnalysisSchema = z.strictObject({
+  candidateName: z.string(),
+  email: z.string(),
+  phone: z.string(),
+  yearsExperience: z.number().min(0).max(80),
+  currentRole: z.string(),
+  skills: z.array(z.string()),
+  strengths: z.array(z.string()),
+  weaknesses: z.array(z.string()),
+  education: z.array(z.string()),
+  projects: z.array(z.string()),
+  recommendedRole: z.string(),
+  score: z.number().min(0).max(100),
+  decision: z.enum(recruiterDecisions),
+  reasoning: z.string(),
+  location: z.string(),
+  currentCompany: z.string(),
+  previousCompanies: z.array(z.string()),
+  technicalSkills: z.array(z.string()),
+  softSkills: z.array(z.string()),
+  risks: z.array(z.string()),
+  recommendedRoles: z.array(z.string()),
+  experienceSummary: z.string(),
+  overallAssessment: z.string(),
+  jobMatch: jobMatchSchema,
+});
 
 export function parseRecruiterAnalysis(value: string): RecruiterAnalysis {
   let parsed: unknown;
   try {
     parsed = JSON.parse(value);
   } catch {
-    const jsonCandidate = extractJsonObject(value);
-    if (!jsonCandidate) throw new Error("The AI returned malformed analysis data.");
-    try {
-      parsed = JSON.parse(jsonCandidate);
-    } catch {
-      throw new Error("The AI returned malformed analysis data.");
-    }
+    throw new Error("The AI returned malformed analysis data.");
   }
-  if (
-    !isRecord(parsed) ||
-    !isStringArray(parsed.skills) ||
-    !isStringArray(parsed.strengths) ||
-    !isStringArray(parsed.weaknesses) ||
-    !isStringArray(parsed.education) ||
-    !isStringArray(parsed.projects) ||
-    !isRecruiterDecision(parsed.decision)
-  ) {
-    throw new Error("The AI returned an incomplete analysis.");
-  }
-  const { candidateName, email, phone, currentRole, recommendedRole, reasoning, yearsExperience, score } = parsed;
-  if (
-    typeof candidateName !== "string" ||
-    typeof email !== "string" ||
-    typeof phone !== "string" ||
-    typeof currentRole !== "string" ||
-    typeof recommendedRole !== "string" ||
-    typeof reasoning !== "string" ||
-    typeof yearsExperience !== "number" ||
-    typeof score !== "number"
-  ) {
-    throw new Error("The AI returned an invalid analysis format.");
-  }
+
+  const result = recruiterModelAnalysisSchema.safeParse(parsed);
+  if (!result.success) throw new Error("The AI returned an incomplete analysis.");
+
   return {
-    candidateName,
-    email,
-    phone,
-    yearsExperience: Math.max(0, Math.round(yearsExperience)),
-    currentRole,
-    skills: parsed.skills,
-    strengths: parsed.strengths,
-    weaknesses: parsed.weaknesses,
-    education: parsed.education,
-    projects: parsed.projects,
-    recommendedRole,
-    score: Math.max(0, Math.min(100, Math.round(score))),
-    decision: parsed.decision,
-    reasoning,
+    ...result.data,
+    yearsExperience: Math.round(result.data.yearsExperience),
+    score: Math.round(result.data.score),
+    jobMatch: {
+      ...result.data.jobMatch,
+      overallFitScore: Math.round(result.data.jobMatch.overallFitScore),
+    },
   };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
-}
-
-function isRecruiterDecision(value: unknown): value is RecruiterDecision {
-  return typeof value === "string" && recruiterDecisions.includes(value as RecruiterDecision);
-}
-
-function extractJsonObject(value: string) {
-  const start = value.indexOf("{");
-  const end = value.lastIndexOf("}");
-  return start >= 0 && end > start ? value.slice(start, end + 1) : null;
 }

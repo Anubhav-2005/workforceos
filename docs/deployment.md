@@ -4,43 +4,52 @@
 
 - A GitHub repository containing this project.
 - A Vercel account connected to that repository.
+- A PostgreSQL database for connected workspaces.
 - An OpenAI API project with billing or available credits for resume analysis.
 
 ## Deploy to Vercel
 
 1. In Vercel, choose **Add New → Project** and import `Anubhav-2005/workforceos`.
-2. Keep the framework preset as **Next.js** and the default build settings.
+2. Keep the framework preset as **Next.js**. The build command is `npm run build`.
 3. In **Settings → Environment Variables**, add the variables below for Production (and Preview if desired):
 
    ```text
+   DATABASE_URL=postgresql://...
    OPENAI_API_KEY=...
+   OPENAI_MODEL=gpt-5.6-terra
    NEXT_PUBLIC_APP_URL=https://workforceos-bay.vercel.app
    ```
 
-4. Deploy the project.
-5. If Vercel assigns a different final URL, update `NEXT_PUBLIC_APP_URL` and redeploy.
+4. Run the committed Prisma migration against that database from a trusted terminal with `DATABASE_URL` set: `npm run db:deploy`. Use a direct database URL that supports migrations; if your provider offers a pooled runtime URL, keep the direct URL for migrations.
+5. Deploy the project. `npm run build` generates the Prisma client before compiling.
+6. If Vercel assigns a different final URL, update `NEXT_PUBLIC_APP_URL` and redeploy.
 
-`OPENAI_API_KEY` must be entered in Vercel; do not add `.env.local` to Git or paste a key into source code. No `vercel.json` is needed: this project uses the standard Next.js runtime, and the resume route explicitly declares its Node.js runtime and 60-second duration. The PDF parser and its native canvas dependency are kept external in `next.config.ts` so Vercel includes the correct Linux runtime files.
+`OPENAI_API_KEY` must be entered in Vercel; do not add `.env.local` to Git or paste a key into source code. Rotate any key that has been pasted into a chat or issue. The app uses the Node.js runtime and allows up to 60 seconds for PDF extraction and analysis. The PDF parser and its native canvas dependency are kept external in `next.config.ts` so Vercel includes the correct Linux runtime files.
+
+If `DATABASE_URL` is absent, the deployment intentionally stays in an amber-bannered browser-local demo mode. Live AI routes, shared accounts, and database persistence are disabled there. Do not describe that mode as a live multi-user deployment.
 
 ## Post-deploy verification
 
-1. Visit `/` and `/dashboard`; confirm redirects, metadata, and dashboard navigation work.
+1. Visit `/` and `/dashboard`; confirm sign-in is required in connected mode. Create an account at `/sign-up`.
 2. Check desktop and mobile widths.
-3. Upload a text-based PDF under 5 MB in **Recruiter → Resume Review**.
+3. Upload a text-based PDF under 4 MB in **Recruiter → Resume Review**.
 4. Confirm a successful structured analysis, or a helpful configuration/quota error if the OpenAI project is unavailable.
-5. Approve or reject a candidate and refresh to confirm local persistence.
-6. Run the Workforce Engine and test the human approval pause.
-7. Export a CSV from Analytics.
+5. Approve or reject a candidate and refresh to confirm database persistence.
+6. Start **Candidate onboarding** in **Workflows**, confirm it pauses at the human gate, approve, then continue the queued run and inspect its steps/draft.
+7. Create a task, run it, and review the saved draft.
+8. Export a CSV from Analytics and sign out/sign back in to confirm workspace isolation.
 
 ## Troubleshooting
 
-| Symptom                                   | Likely cause                                      | Resolution                                                   |
-| ----------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------ |
-| Resume analysis says it is not configured | Missing `OPENAI_API_KEY`                          | Add the variable in Vercel and redeploy.                     |
-| Resume analysis says no remaining quota   | OpenAI project billing or credits are unavailable | Add billing/credits or use an API key from a funded project. |
-| PDF is rejected                           | Unsupported, oversized, or scanned PDF            | Use a text-based PDF smaller than 5 MB.                      |
-| Metadata links use localhost              | `NEXT_PUBLIC_APP_URL` is unset or invalid         | Set the deployed absolute URL and redeploy.                  |
-| Local state differs between browsers      | MVP uses browser local storage                    | Expected; durable shared state is future work.               |
+| Symptom                                   | Likely cause                                      | Resolution                                                            |
+| ----------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------- |
+| Resume analysis says it is not configured | Missing `OPENAI_API_KEY`                          | Add the variable in Vercel and redeploy.                              |
+| Resume analysis says no remaining quota   | OpenAI project billing or credits are unavailable | Add billing/credits or use an API key from a funded project.          |
+| PDF is rejected                           | Unsupported, oversized, or scanned PDF            | Use a text-based PDF smaller than 4 MB.                               |
+| Metadata links use localhost              | `NEXT_PUBLIC_APP_URL` is unset or invalid         | Set the deployed absolute URL and redeploy.                           |
+| Amber Demo workspace banner               | `DATABASE_URL` is absent                          | Provision Postgres, apply migrations, set the variable, and redeploy. |
+| Database-backed routes fail               | Invalid database URL or missing migration         | Check connectivity and run `npm run db:deploy`.                       |
+| Local state differs between browsers      | Browser-local demo mode                           | Expected only without `DATABASE_URL`; connected mode is shared.       |
 
 ## Rollback
 

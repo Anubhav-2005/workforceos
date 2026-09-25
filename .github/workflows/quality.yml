@@ -29,5 +29,11 @@ jobs:
       - name: Check code quality
         run: npm run check
 
+      - name: Test workflow logic
+        run: npm test
+
+      - name: Check dependency advisories
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Build
         run: npm run build

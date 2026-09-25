@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, Eye, FileText, FlaskConical, LoaderCircle, RefreshCw, UploadCloud } from "lucide-react";
 import { analyzeResume } from "@/services/recruiter";
-import type { RecruiterAnalysis } from "@/types/recruiter";
+import type { RecruiterAnalysis, RecruiterJobCriteria } from "@/types/recruiter";
 
 type ResumeUploaderProps = {
   onAnalyzed: (analysis: RecruiterAnalysis) => void;
@@ -11,7 +11,8 @@ type ResumeUploaderProps = {
   onUseDemo: () => void;
 };
 
-const MAX_RESUME_BYTES = 5 * 1024 * 1024;
+// Vercel's request-body limit leaves room for multipart overhead below 4.5 MB.
+const MAX_RESUME_BYTES = 4 * 1024 * 1024;
 
 export default function ResumeUploader({ onAnalyzed, onError, onUseDemo }: ResumeUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -24,6 +25,12 @@ export default function ResumeUploader({ onAnalyzed, onError, onUseDemo }: Resum
   const [completed, setCompleted] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [jobCriteriaOpen, setJobCriteriaOpen] = useState(false);
+  const [jobTitle, setJobTitle] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
+  const [requiredSkills, setRequiredSkills] = useState("");
+  const [preferredSkills, setPreferredSkills] = useState("");
+  const [minimumYears, setMinimumYears] = useState("");
 
   useEffect(
     () => () => {
@@ -52,7 +59,29 @@ export default function ResumeUploader({ onAnalyzed, onError, onUseDemo }: Resum
     setProgress(0);
 
     try {
-      const analysis = await analyzeResume(file, { onProgress: setProgress });
+      const hasJobCriteria = Boolean(
+        jobTitle.trim() ||
+        jobDescription.trim() ||
+        requiredSkills.trim() ||
+        preferredSkills.trim() ||
+        minimumYears.trim(),
+      );
+      const jobCriteria: RecruiterJobCriteria | null = hasJobCriteria
+        ? {
+            title: jobTitle.trim(),
+            description: jobDescription.trim(),
+            requiredSkills: requiredSkills
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean),
+            preferredSkills: preferredSkills
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean),
+            minimumYearsExperience: minimumYears.trim() ? Number(minimumYears) : null,
+          }
+        : null;
+      const analysis = await analyzeResume(file, { onProgress: setProgress, jobCriteria });
       setProgress(100);
       setCompleted(true);
       onAnalyzed(analysis);
@@ -112,7 +141,80 @@ export default function ResumeUploader({ onAnalyzed, onError, onUseDemo }: Resum
           {uploading ? <LoaderCircle size={19} className="animate-spin" /> : <UploadCloud size={19} />}
         </span>
         <p className="mt-3 text-xs font-bold text-slate-700">Drop a PDF resume here or click to browse</p>
-        <p className="mt-1 text-[10px] text-slate-400">PDF files only · maximum file size 5 MB</p>
+        <p className="mt-1 text-[10px] text-slate-400">PDF files only · maximum file size 4 MB</p>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setJobCriteriaOpen((current) => !current)}
+        aria-expanded={jobCriteriaOpen}
+        className="mt-4 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+      >
+        {jobCriteriaOpen ? "Hide" : "Add"} job criteria (optional)
+      </button>
+      {jobCriteriaOpen && (
+        <div className="mt-4 space-y-3 rounded-xl border border-slate-100 bg-slate-50 p-4">
+          <p className="text-xs leading-5 text-slate-500">
+            Compare the resume against a specific role. These criteria are sent with the resume analysis.
+          </p>
+          <label className="block text-xs font-semibold text-slate-700">
+            Job title
+            <input
+              maxLength={160}
+              value={jobTitle}
+              onChange={(event) => setJobTitle(event.target.value)}
+              placeholder="e.g. Senior Product Designer"
+              className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs outline-none focus:border-indigo-400"
+            />
+          </label>
+          <label className="block text-xs font-semibold text-slate-700">
+            Job description
+            <textarea
+              maxLength={8000}
+              value={jobDescription}
+              onChange={(event) => setJobDescription(event.target.value)}
+              placeholder="Responsibilities and must-haves"
+              className="mt-1.5 min-h-20 w-full rounded-lg border border-slate-200 bg-white p-3 text-xs outline-none focus:border-indigo-400"
+            />
+          </label>
+          <label className="block text-xs font-semibold text-slate-700">
+            Required skills
+            <input
+              value={requiredSkills}
+              onChange={(event) => setRequiredSkills(event.target.value)}
+              placeholder="Comma-separated skills"
+              className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs outline-none focus:border-indigo-400"
+            />
+          </label>
+          <label className="block text-xs font-semibold text-slate-700">
+            Preferred skills
+            <input
+              value={preferredSkills}
+              onChange={(event) => setPreferredSkills(event.target.value)}
+              placeholder="Comma-separated skills"
+              className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs outline-none focus:border-indigo-400"
+            />
+          </label>
+          <label className="block text-xs font-semibold text-slate-700">
+            Minimum experience (years)
+            <input
+              type="number"
+              min={0}
+              max={80}
+              value={minimumYears}
+              onChange={(event) => setMinimumYears(event.target.value)}
+              className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs outline-none focus:border-indigo-400"
+            />
+          </label>
+        </div>
+      )}
+      <button
+        type="button"
+        disabled={uploading}
+        onClick={onUseDemo}
+        className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 transition hover:text-indigo-800 disabled:opacity-50"
+      >
+        <FlaskConical size={14} /> Use fictional demo result
       </button>
 
       {fileName && (
@@ -206,6 +308,6 @@ function validateResume(file: File) {
     return "Please upload a PDF resume.";
   }
   if (file.size === 0) return "The uploaded resume is empty.";
-  if (file.size > MAX_RESUME_BYTES) return "Resume files must be 5 MB or smaller.";
+  if (file.size > MAX_RESUME_BYTES) return "Resume files must be 4 MB or smaller.";
   return null;
 }

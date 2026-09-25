@@ -1,6 +1,10 @@
 import { Activity, CheckCircle2, ListChecks } from "lucide-react";
 
-export default function RecruiterHeader() {
+export default function RecruiterHeader({
+  metrics,
+}: {
+  metrics?: { reviewed: number; pending: number; averageScore: number };
+}) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_12px_rgba(15,23,42,0.035)] sm:p-6">
       <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
@@ -16,9 +20,21 @@ export default function RecruiterHeader() {
         </span>
       </div>
       <div className="mt-6 grid gap-3 border-t border-slate-100 pt-5 sm:grid-cols-3">
-        <HeaderMetric icon={<ListChecks size={17} />} label="Tasks today" value="42" />
-        <HeaderMetric icon={<CheckCircle2 size={17} />} label="Accuracy" value="96%" />
-        <HeaderMetric icon={<Activity size={17} />} label="Response time" value="2.4 min" />
+        <HeaderMetric
+          icon={<ListChecks size={17} />}
+          label={metrics ? "Resumes reviewed" : "Tasks today"}
+          value={metrics ? String(metrics.reviewed) : "42"}
+        />
+        <HeaderMetric
+          icon={<CheckCircle2 size={17} />}
+          label={metrics ? "Pending reviews" : "Accuracy"}
+          value={metrics ? String(metrics.pending) : "96%"}
+        />
+        <HeaderMetric
+          icon={<Activity size={17} />}
+          label={metrics ? "Average AI score" : "Response time"}
+          value={metrics ? `${metrics.averageScore}%` : "2.4 min"}
+        />
       </div>
     </section>
   );

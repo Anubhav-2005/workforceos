@@ -1,128 +1,117 @@
 import OpenAI from "openai";
+import { z } from "zod";
 import { EnvironmentConfigurationError } from "@/lib/env";
-import { getOpenAIClient } from "@/lib/openai";
-import { buildRecruiterResumeInput, RECRUITER_SYSTEM_PROMPT } from "@/lib/prompts/recruiterPrompt";
+import { analyzeRecruiterResume, RecruiterAIError } from "@/lib/ai/analyzeRecruiterResume";
+import { apiError } from "@/lib/api/http";
+import { assertSameOrigin, requireWorkspaceContext } from "@/lib/auth/session";
+import { extractResumeText, MAX_MULTIPART_BYTES, ResumeFileError } from "@/lib/pdf/extractResumeText";
+import { persistRecruiterAnalysis } from "@/lib/recruiter/persist-analysis";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { parseRecruiterAnalysis, recruiterAnalysisJsonSchema, type RecruiterAnalysis } from "@/types/recruiter";
+import type { RecruiterJobCriteria } from "@/types/recruiter";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const MAX_RESUME_BYTES = 5 * 1024 * 1024;
-const MAX_RESUME_CHARACTERS = 60_000;
-const MIN_RESUME_CHARACTERS = 40;
 const RATE_LIMIT_REQUESTS = 8;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1_000;
 
+const jobCriteriaSchema = z.strictObject({
+  title: z.string().trim().max(160),
+  description: z.string().trim().max(8_000),
+  requiredSkills: z.array(z.string().trim().min(1).max(100)).max(30),
+  preferredSkills: z.array(z.string().trim().min(1).max(100)).max(30),
+  minimumYearsExperience: z.number().min(0).max(80).nullable(),
+});
+
 export async function POST(request: Request) {
-  const rateLimit = checkRateLimit(getRequestIdentifier(request), {
-    limit: RATE_LIMIT_REQUESTS,
-    windowMs: RATE_LIMIT_WINDOW_MS,
-  });
-
-  if (!rateLimit.allowed) {
-    return jsonError("Too many resume analyses. Please wait a few minutes and try again.", 429, {
-      "Retry-After": String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1_000))),
-    });
-  }
-
   try {
+    assertSameOrigin(request);
+    const context = await requireWorkspaceContext();
+    const rateLimit = checkRateLimit(`${context.organization.id}:${getRequestIdentifier(request)}`, {
+      limit: RATE_LIMIT_REQUESTS,
+      windowMs: RATE_LIMIT_WINDOW_MS,
+    });
+    if (!rateLimit.allowed) {
+      return jsonError("Too many resume analyses. Please wait a few minutes and try again.", 429, {
+        "Retry-After": String(Math.max(1, Math.ceil((rateLimit.resetAt - Date.now()) / 1_000))),
+      });
+    }
     if (!request.headers.get("content-type")?.includes("multipart/form-data")) {
       return jsonError("Upload the resume as multipart form data.", 415);
     }
-
-    const formData = await request.formData();
-    const resume = formData.get("resume");
-    if (!(resume instanceof File)) return jsonError("Please choose a PDF resume.", 400);
-    if (resume.size === 0) return jsonError("The uploaded resume is empty.", 400);
-    if (resume.size > MAX_RESUME_BYTES) return jsonError("Resume files must be 5 MB or smaller.", 413);
-    if (!isPdfFile(resume)) return jsonError("Only PDF resumes are supported.", 415);
-
-    const resumeBuffer = Buffer.from(await resume.arrayBuffer());
-    if (!hasPdfSignature(resumeBuffer)) return jsonError("This file is not a valid PDF document.", 415);
-
-    const resumeText = await extractPdfText(resumeBuffer);
-    if (resumeText.length < MIN_RESUME_CHARACTERS) {
-      return jsonError("We could not find enough readable text in this PDF resume.", 422);
+    if (Number(request.headers.get("content-length") ?? 0) > MAX_MULTIPART_BYTES) {
+      return jsonError("Resume files must be 4 MB or smaller.", 413);
     }
 
-    const analysis = await analyzeResumeText(resumeText);
-    return Response.json(analysis, { headers: responseHeaders(rateLimit) });
+    const formData = await readBoundedMultipart(request);
+    const resume = formData.get("resume");
+    if (!(resume instanceof File)) return jsonError("Please choose a PDF resume.", 400);
+    const jobCriteria = parseJobCriteria(formData);
+    const resumeText = await extractResumeText(resume);
+    const result = await analyzeRecruiterResume(resumeText, jobCriteria);
+    const candidateId = await persistRecruiterAnalysis({
+      organizationId: context.organization.id,
+      userId: context.user.id,
+      file: resume,
+      result,
+    });
+    return Response.json(result.analysis, {
+      headers: { ...responseHeaders(rateLimit), "X-Candidate-Id": candidateId },
+    });
   } catch (error) {
     return handleError(error);
   }
 }
 
-async function analyzeResumeText(resumeText: string): Promise<RecruiterAnalysis> {
-  let parseError: Error | null = null;
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const response = await getOpenAIClient().responses.create({
-      model: "gpt-5.6-terra",
-      instructions: RECRUITER_SYSTEM_PROMPT,
-      input: buildRecruiterResumeInput(resumeText),
-      max_output_tokens: 1_600,
-      store: false,
-      text: {
-        format: {
-          type: "json_schema",
-          name: "recruiter_analysis",
-          description: "Structured hiring analysis extracted from a resume.",
-          strict: true,
-          schema: recruiterAnalysisJsonSchema,
-        },
-      },
-    });
-
-    const refusal = getRefusal(response);
-    if (refusal) throw new RecruiterAnalysisError("The AI could not analyze this document.", "refusal");
-    if (response.status !== "completed" || !response.output_text) {
-      throw new RecruiterAnalysisError("The AI did not complete the resume analysis.", "incomplete");
+async function readBoundedMultipart(request: Request): Promise<FormData> {
+  if (!request.body) throw new ResumeFileError("The uploaded resume is empty.", 422);
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    totalBytes += value.byteLength;
+    if (totalBytes > MAX_MULTIPART_BYTES) {
+      await reader.cancel();
+      throw new ResumeFileError("Resume files must be 4 MB or smaller.", 413);
     }
-
-    try {
-      return parseRecruiterAnalysis(response.output_text);
-    } catch (error) {
-      parseError = error instanceof Error ? error : new Error("The AI returned malformed analysis data.");
-    }
+    chunks.push(value);
   }
-
-  throw parseError ?? new Error("The AI returned malformed analysis data.");
-}
-
-async function extractPdfText(data: Buffer) {
-  const { CanvasFactory } = await import("pdf-parse/worker");
-  const { PDFParse } = await import("pdf-parse");
-  const parser = new PDFParse({ data, CanvasFactory });
-  try {
-    const result = await parser.getText();
-    return result.text
-      .replace(/\0/g, "")
-      .replace(/[^\S\r\n]+/g, " ")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim()
-      .slice(0, MAX_RESUME_CHARACTERS);
-  } finally {
-    await parser.destroy();
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
   }
+  return new Response(bytes, {
+    headers: { "Content-Type": request.headers.get("Content-Type") ?? "" },
+  }).formData();
 }
 
-function getRefusal(response: OpenAI.Responses.Response) {
-  for (const output of response.output) {
-    if (output.type !== "message") continue;
-    for (const content of output.content) {
-      if (content.type === "refusal") return content.refusal;
-    }
-  }
-  return null;
+function parseJobCriteria(form: FormData): RecruiterJobCriteria | null {
+  const title = String(form.get("jobTitle") ?? "").trim();
+  const description = String(form.get("jobDescription") ?? "").trim();
+  const requiredSkills = parseSkillList(form.get("requiredSkills"));
+  const preferredSkills = parseSkillList(form.get("preferredSkills"));
+  const rawYears = form.get("minimumYearsExperience");
+  const years = typeof rawYears === "string" && rawYears.trim() ? Number(rawYears) : null;
+  if (!title && !description && !requiredSkills.length && !preferredSkills.length && years === null) return null;
+  return jobCriteriaSchema.parse({
+    title,
+    description,
+    requiredSkills,
+    preferredSkills,
+    minimumYearsExperience: years,
+  });
 }
 
-function isPdfFile(file: File) {
-  return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-}
-
-function hasPdfSignature(data: Buffer) {
-  return data.subarray(0, 5).toString("ascii") === "%PDF-";
+function parseSkillList(value: FormDataEntryValue | null): string[] {
+  if (typeof value !== "string") return [];
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function getRequestIdentifier(request: Request) {
@@ -131,6 +120,8 @@ function getRequestIdentifier(request: Request) {
 }
 
 function handleError(error: unknown) {
+  if (error instanceof ResumeFileError) return jsonError(error.message, error.status);
+  if (error instanceof RecruiterAIError) return jsonError(error.message, error.reason === "refusal" ? 422 : 502);
   if (error instanceof OpenAI.APIConnectionTimeoutError)
     return jsonError("The AI analysis timed out. Please try again.", 504);
   if (error instanceof OpenAI.APIConnectionError)
@@ -146,12 +137,10 @@ function handleError(error: unknown) {
       return jsonError("The AI analysis timed out. Please try again.", 504);
     return jsonError("The AI service could not analyze this resume right now.", 502);
   }
-  if (error instanceof RecruiterAnalysisError) return jsonError(error.message, error.reason === "refusal" ? 422 : 502);
   if (error instanceof EnvironmentConfigurationError && error.variable === "OPENAI_API_KEY") {
     return jsonError("Resume analysis is not configured. Add OPENAI_API_KEY to the server environment.", 503);
   }
-  if (error instanceof Error && error.message.startsWith("The AI returned")) return jsonError(error.message, 502);
-  return jsonError("Unable to read this PDF resume. Please upload another file.", 422);
+  return apiError(error);
 }
 
 function jsonError(error: string, status: number, headers: HeadersInit = {}) {
@@ -173,14 +162,4 @@ function responseHeaders(rateLimit: ReturnType<typeof checkRateLimit>) {
     "X-RateLimit-Limit": String(rateLimit.limit),
     "X-RateLimit-Remaining": String(rateLimit.remaining),
   };
-}
-
-class RecruiterAnalysisError extends Error {
-  constructor(
-    message: string,
-    readonly reason: "refusal" | "incomplete",
-  ) {
-    super(message);
-    this.name = "RecruiterAnalysisError";
-  }
 }

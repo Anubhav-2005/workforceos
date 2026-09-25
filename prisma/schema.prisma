@@ -1,0 +1,601 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrganizationRole {
+  Owner
+  Admin
+  Manager
+  Member
+  Viewer
+}
+
+enum AIEmployeeStatus {
+  Active
+  Paused
+  Disabled
+}
+
+enum TaskStatus {
+  Backlog
+  Queued
+  Running
+  NeedsApproval
+  Completed
+  Failed
+  Cancelled
+}
+
+enum TaskPriority {
+  Low
+  Medium
+  High
+  Urgent
+}
+
+enum TaskExecutionStatus {
+  Queued
+  Running
+  WaitingForApproval
+  Completed
+  Failed
+  Cancelled
+}
+
+enum WorkflowStatus {
+  Draft
+  Active
+  Archived
+}
+
+enum WorkflowNodeType {
+  START
+  AI_EMPLOYEE
+  HUMAN_APPROVAL
+  CONDITION
+  ACTION
+  DELAY
+  END
+}
+
+enum WorkflowExecutionStatus {
+  Queued
+  Running
+  WaitingForApproval
+  Completed
+  Failed
+  Cancelled
+}
+
+enum WorkflowStepStatus {
+  Pending
+  Running
+  Waiting
+  Completed
+  Failed
+  Skipped
+}
+
+enum ApprovalStatus {
+  Pending
+  Approved
+  Rejected
+  Expired
+  Cancelled
+}
+
+enum ApprovalRisk {
+  Low
+  Medium
+  High
+  Critical
+}
+
+enum CandidateStatus {
+  New
+  Analyzed
+  ReviewRequired
+  InterviewRequested
+  Interviewing
+  Approved
+  Rejected
+  Onboarding
+  Hired
+}
+
+enum IntegrationStatus {
+  NotConnected
+  Connected
+  Error
+  Disabled
+}
+
+model User {
+  id                 String               @id @default(cuid())
+  email              String               @unique @db.VarChar(320)
+  name               String               @db.VarChar(120)
+  passwordHash       String               @db.VarChar(255)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  memberships        OrganizationMember[]
+  sessions           Session[]
+  createdTasks       Task[]               @relation("TaskCreator")
+  createdWorkflows   Workflow[]           @relation("WorkflowCreator")
+  workflowExecutions WorkflowExecution[]  @relation("WorkflowExecutionCreator")
+  reviewedApprovals  Approval[]           @relation("ApprovalReviewer")
+  notifications      Notification[]
+  uploadedFiles      FileUpload[]
+  auditLogs          AuditLog[]
+  apiKeys            ApiKey[]
+}
+
+model Organization {
+  id                 String               @id @default(cuid())
+  name               String               @db.VarChar(120)
+  slug               String               @unique @db.VarChar(160)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  members            OrganizationMember[]
+  employees          AIEmployee[]
+  tasks              Task[]
+  taskExecutions     TaskExecution[]
+  workflows          Workflow[]
+  workflowExecutions WorkflowExecution[]
+  approvals          Approval[]
+  candidates         Candidate[]
+  resumeAnalyses     ResumeAnalysis[]
+  activityEvents     ActivityEvent[]
+  notifications      Notification[]
+  integrations       Integration[]
+  auditLogs          AuditLog[]
+  analyticsEvents    AnalyticsEvent[]
+  fileUploads        FileUpload[]
+  promptVersions     PromptVersion[]
+  apiKeys            ApiKey[]
+}
+
+model OrganizationMember {
+  id             String           @id @default(cuid())
+  organizationId String
+  userId         String
+  role           OrganizationRole @default(Member)
+  joinedAt       DateTime         @default(now())
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId, organizationId])
+  @@index([organizationId, role])
+}
+
+model Session {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique @db.Char(64)
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  lastSeenAt DateTime  @default(now())
+  revokedAt  DateTime?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+}
+
+model AIEmployee {
+  id                  String           @id @default(cuid())
+  organizationId      String
+  slug                String           @db.VarChar(80)
+  name                String           @db.VarChar(120)
+  role                String           @db.VarChar(160)
+  department          String?          @db.VarChar(120)
+  description         String?          @db.Text
+  instructions        String?          @db.Text
+  avatarUrl           String?          @db.VarChar(2048)
+  model               String?          @db.VarChar(100)
+  modelConfig         Json?
+  status              AIEmployeeStatus @default(Active)
+  enabled             Boolean          @default(true)
+  lastActivityAt      DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  organization        Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tools               AIEmployeeTool[]
+  tasks               Task[]
+  taskExecutions      TaskExecution[]
+  requestedApprovals  Approval[]
+  resumeAnalyses      ResumeAnalysis[]
+  workflowNodes       WorkflowNode[]
+  recruitedCandidates Candidate[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, status])
+}
+
+model AIEmployeeTool {
+  id          String     @id @default(cuid())
+  employeeId  String
+  toolKey     String     @db.VarChar(120)
+  enabled     Boolean    @default(true)
+  permissions Json?
+  createdAt   DateTime   @default(now())
+  employee    AIEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, toolKey])
+}
+
+model Task {
+  id                 String          @id @default(cuid())
+  organizationId     String
+  title              String          @db.VarChar(200)
+  description        String?         @db.Text
+  status             TaskStatus      @default(Backlog)
+  priority           TaskPriority    @default(Medium)
+  assignedEmployeeId String?
+  createdById        String?
+  workflowId         String?
+  dueAt              DateTime?
+  input              Json?
+  output             Json?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  completedAt        DateTime?
+  organization       Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignedEmployee   AIEmployee?     @relation(fields: [assignedEmployeeId], references: [id], onDelete: SetNull)
+  createdBy          User?           @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  workflow           Workflow?       @relation(fields: [workflowId], references: [id], onDelete: SetNull)
+  executions         TaskExecution[]
+  approvals          Approval[]
+
+  @@index([organizationId, status, createdAt])
+  @@index([organizationId, assignedEmployeeId])
+  @@index([organizationId, priority])
+}
+
+model TaskExecution {
+  id             String              @id @default(cuid())
+  organizationId String
+  taskId         String
+  employeeId     String?
+  status         TaskExecutionStatus @default(Queued)
+  attempt        Int                 @default(1)
+  input          Json?
+  output         Json?
+  error          String?             @db.Text
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime            @default(now())
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  task           Task                @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  employee       AIEmployee?         @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status, createdAt])
+  @@index([taskId, attempt])
+}
+
+model Workflow {
+  id                String              @id @default(cuid())
+  organizationId    String
+  name              String              @db.VarChar(180)
+  description       String?             @db.Text
+  status            WorkflowStatus      @default(Draft)
+  enabled           Boolean             @default(false)
+  definitionVersion Int                 @default(1)
+  createdById       String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  organization      Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy         User?               @relation("WorkflowCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  nodes             WorkflowNode[]
+  edges             WorkflowEdge[]
+  executions        WorkflowExecution[]
+  tasks             Task[]
+
+  @@index([organizationId, status, updatedAt])
+}
+
+model WorkflowNode {
+  id         String           @id @default(cuid())
+  workflowId String
+  key        String           @db.VarChar(100)
+  type       WorkflowNodeType
+  title      String           @db.VarChar(160)
+  positionX  Float            @default(0)
+  positionY  Float            @default(0)
+  config     Json?
+  employeeId String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  workflow   Workflow         @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  employee   AIEmployee?      @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  @@unique([workflowId, key])
+  @@index([employeeId])
+}
+
+model WorkflowEdge {
+  id         String   @id @default(cuid())
+  workflowId String
+  sourceKey  String   @db.VarChar(100)
+  targetKey  String   @db.VarChar(100)
+  condition  Json?
+  createdAt  DateTime @default(now())
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, sourceKey, targetKey])
+  @@index([workflowId, sourceKey])
+}
+
+model WorkflowExecution {
+  id             String                  @id @default(cuid())
+  organizationId String
+  workflowId     String
+  status         WorkflowExecutionStatus @default(Queued)
+  currentNodeKey String?                 @db.VarChar(100)
+  definition     Json?
+  input          Json?
+  context        Json?
+  output         Json?
+  error          String?                 @db.Text
+  createdById    String?
+  createdAt      DateTime                @default(now())
+  startedAt      DateTime?
+  completedAt    DateTime?
+  updatedAt      DateTime                @updatedAt
+  organization   Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workflow       Workflow                @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  createdBy      User?                   @relation("WorkflowExecutionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  steps          WorkflowExecutionStep[]
+  approvals      Approval[]
+
+  @@index([organizationId, status, createdAt])
+  @@index([workflowId, createdAt])
+}
+
+model WorkflowExecutionStep {
+  id          String             @id @default(cuid())
+  executionId String
+  nodeKey     String             @db.VarChar(100)
+  status      WorkflowStepStatus @default(Pending)
+  input       Json?
+  output      Json?
+  error       String?            @db.Text
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime           @default(now())
+  execution   WorkflowExecution  @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId, createdAt])
+  @@index([executionId, status])
+}
+
+model Approval {
+  id                   String             @id @default(cuid())
+  organizationId       String
+  status               ApprovalStatus     @default(Pending)
+  risk                 ApprovalRisk       @default(Medium)
+  action               String             @db.VarChar(180)
+  reason               String?            @db.Text
+  evidence             Json?
+  reviewerComment      String?            @db.Text
+  requestingEmployeeId String?
+  reviewerId           String?
+  taskId               String?
+  candidateId          String?
+  workflowExecutionId  String?
+  requestedAt          DateTime           @default(now())
+  decidedAt            DateTime?
+  expiresAt            DateTime?
+  organization         Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requestingEmployee   AIEmployee?        @relation(fields: [requestingEmployeeId], references: [id], onDelete: SetNull)
+  reviewer             User?              @relation("ApprovalReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  task                 Task?              @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  candidate            Candidate?         @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  workflowExecution    WorkflowExecution? @relation(fields: [workflowExecutionId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status, requestedAt])
+  @@index([workflowExecutionId, status])
+  @@index([candidateId, requestedAt])
+}
+
+model Candidate {
+  id                  String           @id @default(cuid())
+  organizationId      String
+  name                String           @db.VarChar(180)
+  email               String?          @db.VarChar(320)
+  phone               String?          @db.VarChar(80)
+  currentRole         String?          @db.VarChar(180)
+  location            String?          @db.VarChar(180)
+  yearsExperience     Float?
+  status              CandidateStatus  @default(New)
+  aiScore             Int?
+  notes               String?          @db.Text
+  recruiterEmployeeId String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  organization        Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  recruiterEmployee   AIEmployee?      @relation(fields: [recruiterEmployeeId], references: [id], onDelete: SetNull)
+  analyses            ResumeAnalysis[]
+  approvals           Approval[]
+  files               FileUpload[]
+
+  @@index([organizationId, status, createdAt])
+  @@index([organizationId, email])
+  @@index([organizationId, aiScore])
+}
+
+model ResumeAnalysis {
+  id             String       @id @default(cuid())
+  organizationId String
+  candidateId    String
+  employeeId     String?
+  fileUploadId   String?
+  model          String?      @db.VarChar(100)
+  promptVersion  String?      @db.VarChar(80)
+  result         Json
+  score          Int?
+  decision       String?      @db.VarChar(40)
+  source         String       @default("openai") @db.VarChar(40)
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  candidate      Candidate    @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  employee       AIEmployee?  @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  fileUpload     FileUpload?  @relation(fields: [fileUploadId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([candidateId, createdAt])
+}
+
+model ActivityEvent {
+  id             String       @id @default(cuid())
+  organizationId String
+  actorType      String       @db.VarChar(40)
+  actorId        String?
+  action         String       @db.VarChar(120)
+  entityType     String       @db.VarChar(80)
+  entityId       String?
+  title          String       @db.VarChar(240)
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, entityType, entityId])
+}
+
+model Notification {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  type           String       @db.VarChar(80)
+  title          String       @db.VarChar(200)
+  body           String?      @db.Text
+  href           String?      @db.VarChar(2048)
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@index([organizationId, createdAt])
+}
+
+model Integration {
+  id             String                          @id @default(cuid())
+  organizationId String
+  provider       String                          @db.VarChar(100)
+  status         IntegrationStatus               @default(NotConnected)
+  config         Json?
+  connectedAt    DateTime?
+  createdAt      DateTime                        @default(now())
+  updatedAt      DateTime                        @updatedAt
+  organization   Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  credentials    IntegrationCredentialMetadata[]
+
+  @@unique([organizationId, provider])
+}
+
+model IntegrationCredentialMetadata {
+  id            String      @id @default(cuid())
+  integrationId String
+  label         String      @db.VarChar(160)
+  secretRef     String      @db.VarChar(500)
+  encryptedBy   String?     @db.VarChar(100)
+  lastRotatedAt DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  integration   Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@index([integrationId])
+}
+
+model AuditLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  actorUserId    String?
+  action         String       @db.VarChar(160)
+  entityType     String       @db.VarChar(80)
+  entityId       String?
+  before         Json?
+  after          Json?
+  ipAddress      String?      @db.VarChar(64)
+  userAgent      String?      @db.VarChar(500)
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actorUser      User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, entityType, entityId])
+}
+
+model AnalyticsEvent {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String       @db.VarChar(120)
+  value          Float?
+  properties     Json?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, name, createdAt])
+}
+
+model FileUpload {
+  id             String           @id @default(cuid())
+  organizationId String
+  uploadedById   String?
+  candidateId    String?
+  filename       String           @db.VarChar(255)
+  mimeType       String           @db.VarChar(120)
+  sizeBytes      Int
+  sha256         String           @db.Char(64)
+  storageKey     String?          @db.VarChar(500)
+  status         String           @default("processed") @db.VarChar(40)
+  createdAt      DateTime         @default(now())
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedBy     User?            @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  candidate      Candidate?       @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  analyses       ResumeAnalysis[]
+
+  @@index([organizationId, sha256])
+  @@index([organizationId, createdAt])
+}
+
+model PromptVersion {
+  id             String        @id @default(cuid())
+  organizationId String?
+  key            String        @db.VarChar(120)
+  version        String        @db.VarChar(80)
+  content        String        @db.Text
+  publishedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, key, version])
+  @@index([key, publishedAt])
+}
+
+model ApiKey {
+  id             String       @id @default(cuid())
+  organizationId String
+  createdById    String?
+  label          String       @db.VarChar(120)
+  prefix         String       @db.VarChar(20)
+  keyHash        String       @unique @db.Char(64)
+  scopes         String[]
+  lastUsedAt     DateTime?
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy      User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, revokedAt])
+  @@index([prefix])
+}

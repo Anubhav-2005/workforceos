@@ -9,3 +9,7 @@ export function getOpenAIClient(): OpenAI {
   client ??= new OpenAI({ apiKey, timeout: 45_000, maxRetries: 0 });
   return client;
 }
+
+export function getRecruiterModel(): string {
+  return process.env.OPENAI_RECRUITER_MODEL?.trim() || process.env.OPENAI_MODEL?.trim() || "gpt-5.6-terra";
+}

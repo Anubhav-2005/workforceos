@@ -11,6 +11,10 @@ type WorkflowControlsProps = {
   onApprove: () => void;
   onReject: () => void;
   onReset: () => void;
+  connected?: boolean;
+  approvalMessage?: string;
+  resumeQueued?: boolean;
+  busy?: boolean;
 };
 
 export default function WorkflowControls({
@@ -21,9 +25,13 @@ export default function WorkflowControls({
   onApprove,
   onReject,
   onReset,
+  connected,
+  approvalMessage,
+  resumeQueued,
+  busy,
 }: WorkflowControlsProps) {
   if (!workflow) return null;
-  const running = phase === "running";
+  const running = phase === "running" && !resumeQueued;
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_12px_rgba(15,23,42,0.035)]">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -69,10 +77,11 @@ export default function WorkflowControls({
           <button
             type="button"
             onClick={onRun}
-            disabled={!workflow.enabled || running}
+            disabled={busy || (!workflow.enabled && !resumeQueued) || running}
             className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3.5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-indigo-100 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            <Play size={15} fill="currentColor" /> {running ? "Workflow running" : "Run workflow"}
+            <Play size={15} fill="currentColor" />{" "}
+            {busy || running ? "Workflow running" : resumeQueued ? "Continue run" : "Run workflow"}
           </button>
         )}
         <button
@@ -80,12 +89,13 @@ export default function WorkflowControls({
           onClick={onReset}
           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
         >
-          <RotateCcw size={14} /> Reset run
+          <RotateCcw size={14} /> {connected ? "Clear run view" : "Reset run"}
         </button>
       </div>
       {phase === "awaiting_approval" && (
         <p role="status" className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Candidate scored 92. The workflow is paused until a human approves or rejects the handoff.
+          {approvalMessage ??
+            "Candidate scored 92. The workflow is paused until a human approves or rejects the handoff."}
         </p>
       )}
     </section>

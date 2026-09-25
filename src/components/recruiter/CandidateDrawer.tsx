@@ -1,13 +1,21 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { X } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import type { Candidate } from "@/lib/recruiter-data";
 import AnalysisSourceBadge from "@/components/recruiter/AnalysisSourceBadge";
 import ScoreBadge from "@/components/recruiter/ScoreBadge";
 import ResumeAnalysis from "@/components/recruiter/ResumeAnalysis";
 
-export default function CandidateDrawer({ candidate, onClose }: { candidate: Candidate; onClose: () => void }) {
+export default function CandidateDrawer({
+  candidate,
+  onClose,
+  onDelete,
+}: {
+  candidate: Candidate;
+  onClose: () => void;
+  onDelete?: () => void;
+}) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -93,6 +101,15 @@ export default function CandidateDrawer({ candidate, onClose }: { candidate: Can
           <div className="mt-6">
             <ResumeAnalysis analysis={candidate.analysis} source={candidate.analysisSource ?? "openai"} />
           </div>
+        )}
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            className="mt-7 inline-flex items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
+          >
+            <Trash2 size={14} /> Delete candidate data
+          </button>
         )}
       </aside>
     </div>

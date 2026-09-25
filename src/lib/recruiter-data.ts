@@ -5,6 +5,8 @@ export type RecruiterAnalysisSource = "openai" | "demo";
 
 export type Candidate = {
   id: string;
+  approvalId?: string;
+  email?: string | null;
   name: string;
   role: string;
   experience: string;

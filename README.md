@@ -9,7 +9,26 @@ WorkforceOS is an operating system for teams of AI employees. It gives people on
 
 This repository is a functional hackathon MVP built by [Anubhav Pandey](https://github.com/Anubhav-2005).
 
+## Why I built this
+
+I kept noticing the same gap in AI demos: each tool looked capable on its own, but a person still had to copy the result into the next tool, remember who was waiting, and make important decisions outside the workflow. I wanted to explore what the product looks like when the main object is not a chat, but a team.
+
+Recruiting became the test case because it forces the hard parts into the open. The input is messy, the output needs structure, the decision affects a person, and the work does not end after the resume is reviewed. That made it a useful way to test coordination without pretending that AI should make the final call.
+
 ![WorkforceOS product preview](./public/og.png)
+
+## If you are judging this project
+
+The fastest review path takes about three minutes:
+
+1. Open the [live dashboard](https://workforceos-bay.vercel.app/dashboard). If the amber **Demo workspace** banner appears, the deployment is running the browser-local demonstration. Explore **AI Employees → Recruiter → Resume Review**, use the clearly labeled fictional result, and run the local workflow simulation.
+2. On a deployment with `DATABASE_URL` and `OPENAI_API_KEY`, create an account, upload a text-based PDF under 4 MB, and review the structured analysis in **Recruiter**.
+3. Approve the candidate in **Approvals**, then run **Candidate onboarding** in **Workflows**. The persisted run pauses at a human gate and resumes only after a reviewer approves it.
+4. Open **Tasks** to run a separate AI assignment, and **Analytics** to see measured outcomes.
+
+What is real today: the product UI; PDF validation and text extraction; server-side OpenAI Responses API analysis with strict schema validation; account sessions and tenant-scoped Postgres records when configured; human approval gates; persisted workflow steps, logs, and drafts; and CSV export. The browser-local demo is explicitly labeled. External ATS, email, and onboarding actions are **not connected**; AI output is a draft, not a sent message or hiring decision.
+
+For a deeper review, see the [architecture](./docs/architecture.md), [feature inventory](./docs/features.md), [jury Q&A](./docs/judges-faq.md), and [complete code walkthrough](./docs/COMPLETE_QA_AND_CODE_WALKTHROUGH.md).
 
 ## The problem
 
@@ -25,7 +44,7 @@ That creates three practical problems:
 
 WorkforceOS treats AI tools as members of a coordinated workforce. Each AI employee has a role, task queue, status, and performance view. The Workforce Engine connects those employees into a visible workflow and pauses when a human decision is required.
 
-The MVP keeps product state in the browser so it is easy to run and judge. Resume analysis is the exception: PDFs are validated and processed by a server-only route that calls the OpenAI Responses API without exposing the API key.
+The app has two modes. Without `DATABASE_URL`, the original browser-local demo is available for quick review and is visibly labeled. With Postgres configured, accounts, tasks, candidates, approvals, workflow runs, activity, and analytics are persisted per workspace. OpenAI is called only from authenticated server routes; the API key never reaches the browser.
 
 ## Core features
 
@@ -36,7 +55,7 @@ The MVP keeps product state in the browser so it is easy to run and judge. Resum
 - Generate a strict, structured hiring analysis with OpenAI.
 - Review skills, strengths, weaknesses, experience, score, decision, and recommended role.
 - Move candidates through approval, rejection, and interview-request states.
-- Keep the local candidate pipeline between sessions.
+- Persist candidates and decisions in the signed-in workspace; browser-local demo data remains separate.
 
 ### AI Sales Executive
 
@@ -58,11 +77,11 @@ The MVP keeps product state in the browser so it is easy to run and judge. Resum
 - Pause execution for a human approval.
 - Approve and resume, or reject and stop the workflow.
 - Follow a live execution log and workflow analytics.
-- Persist workflow configuration and the latest run locally.
+- Persist workflow definitions, steps, human approvals, and run history in Postgres when connected.
 
 ### Analytics dashboard
 
-- Review workforce throughput, reclaimed time, success rate, and satisfaction.
+- Review measured task completions, workflow success, human approvals, AI executions, and token usage in connected mode.
 - Switch between weekly, monthly, and quarterly views.
 - Inspect daily efficiency.
 - Export the current report as CSV.
@@ -71,7 +90,7 @@ The MVP keeps product state in the browser so it is easy to run and judge. Resum
 
 [Open the live WorkforceOS dashboard](https://workforceos-bay.vercel.app/dashboard).
 
-Resume analysis requires a funded `OPENAI_API_KEY` in the Vercel production environment. The rest of the MVP, including candidate approvals and the Workforce Engine simulation, remains available without it.
+The public deployment may show **Demo workspace** until a Postgres `DATABASE_URL` is configured. In that mode, fictional candidate data and workflow simulation work locally in the browser, but live AI analysis and shared accounts are disabled. The connected mode requires Postgres, a funded server-side `OPENAI_API_KEY`, and migrations.
 
 ## Tech stack
 
@@ -82,29 +101,26 @@ Resume analysis requires a funded `OPENAI_API_KEY` in the Vercel production envi
 - Framer Motion
 - OpenAI Node SDK and Responses API
 - `pdf-parse` for server-side PDF text extraction
+- Prisma and PostgreSQL for connected workspaces
+- `bcryptjs` for password hashes and opaque, HTTP-only database sessions
 
 ## Architecture
 
 ```text
 Browser
-  ├─ Dashboard shell and navigation
-  ├─ Local tasks, settings, candidates, and workflows
-  └─ PDF upload
+  ├─ Labeled local demo (only when DATABASE_URL is absent)
+  └─ Authenticated workspace UI
          │
          ▼
-Next.js Route Handler
-  ├─ Request limiting
-  ├─ File and PDF validation
-  ├─ Text extraction
-  └─ Strict structured-output request
-         │
-         ▼
-OpenAI Responses API
+Next.js App Router + tenant-scoped route handlers
+  ├─ PostgreSQL / Prisma: people, tasks, candidates, approvals, runs, activity
+  ├─ Recruiter: bounded PDF parsing → OpenAI Responses API → strict schema
+  └─ Workforce Engine: persisted node steps → human gate → reviewed drafts
 ```
 
 The OpenAI client lives in one server-only module: `src/lib/openai.ts`. Client components never import it. They call `src/services/recruiter.ts`, which sends the PDF to `src/app/api/recruiter/analyze/route.ts`.
 
-Product records intentionally use `localStorage` in this MVP. The state helpers and service boundaries keep a future database migration separate from the UI.
+The connected path uses database-backed records; `localStorage` remains only for the standalone demo path. Raw uploaded PDFs are not retained by the server after text extraction; metadata and structured analysis are stored.
 
 More detail is available in [docs/architecture.md](./docs/architecture.md).
 
@@ -114,7 +130,8 @@ More detail is available in [docs/architecture.md](./docs/architecture.md).
 
 - Node.js 20.9 or newer
 - npm
-- An OpenAI API project with available API credits
+- PostgreSQL 15+ for connected mode
+- An OpenAI API project with available credits for live AI analysis
 
 Clone and install:
 
@@ -131,15 +148,19 @@ Add the following values to `.env.local`:
 
 ```env
 OPENAI_API_KEY=your_openai_api_key
+DATABASE_URL=postgresql://user:password@localhost:5432/workforceos
+OPENAI_MODEL=gpt-5.6-terra
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-| Variable              | Required            | Purpose                                                                  |
-| --------------------- | ------------------- | ------------------------------------------------------------------------ |
-| `OPENAI_API_KEY`      | For resume analysis | Server-side OpenAI credential. Never expose or commit it.                |
-| `NEXT_PUBLIC_APP_URL` | Recommended         | Absolute URL used for canonical metadata, the sitemap, and social cards. |
+| Variable              | Required           | Purpose                                                                            |
+| --------------------- | ------------------ | ---------------------------------------------------------------------------------- |
+| `DATABASE_URL`        | For connected mode | PostgreSQL connection string. Without it, the app runs in labeled local demo mode. |
+| `OPENAI_API_KEY`      | For live AI work   | Server-side OpenAI credential. Never expose or commit it.                          |
+| `OPENAI_MODEL`        | Optional           | Responses API model for AI tasks (default: `gpt-5.6-terra`).                       |
+| `NEXT_PUBLIC_APP_URL` | Recommended        | Absolute URL for canonical metadata, sitemap, and social cards.                    |
 
-If `OPENAI_API_KEY` is missing, the rest of the app remains usable and the Recruiter shows a configuration message instead of crashing.
+Never add `.env.local` or a real credential to Git. A key pasted into a chat or issue should be rotated before deployment.
 
 ## Running locally
 
@@ -149,6 +170,15 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+For connected mode, first create a PostgreSQL database and set `DATABASE_URL`, then run:
+
+```bash
+npm run db:deploy
+npm run dev
+```
+
+Create an account at `/sign-up`. Initial AI employees and a candidate-onboarding workflow are created for that workspace. Without `DATABASE_URL`, no migration or account is needed for the labeled demo.
+
 Useful checks:
 
 ```bash
@@ -156,6 +186,8 @@ npm run lint
 npm run typecheck
 npm run format:check
 npm run build
+npm test
+npm audit --audit-level=high
 ```
 
 ## Deployment
@@ -163,11 +195,10 @@ npm run build
 ### Vercel
 
 1. Import `Anubhav-2005/workforceos` into Vercel.
-2. Add `OPENAI_API_KEY` as a secret environment variable.
-3. Add `NEXT_PUBLIC_APP_URL` with the final `https://...vercel.app` URL.
-4. Deploy with the default Next.js build command.
-5. Redeploy once after setting or changing environment variables.
-6. Verify resume analysis, human approval, workflow execution, CSV export, and mobile navigation.
+2. Provision PostgreSQL, run `npm run db:deploy` against it, and set `DATABASE_URL` in Vercel.
+3. Add a funded `OPENAI_API_KEY` as a secret and set `NEXT_PUBLIC_APP_URL` to the final URL.
+4. Deploy with `npm run build`; it generates the Prisma client before compiling.
+5. Sign up, upload a PDF, check the approval pause/resume, run a task, and verify persistence after refresh.
 
 No `vercel.json` is required for the current architecture. The Recruiter API route explicitly uses the Node.js runtime and allows up to 60 seconds for PDF extraction and analysis.
 
@@ -197,26 +228,38 @@ See [docs/deployment.md](./docs/deployment.md) for the complete deployment and v
 ## Security notes
 
 - Secrets are read only from server-side environment variables.
-- Uploaded PDFs are limited to 5 MB and checked by MIME type, extension, and file signature.
+- Uploaded PDFs are limited to 4 MB (including multipart overhead below Vercel's body limit) and checked by MIME type, extension, and file signature.
 - Extracted resume text is bounded before it is sent to OpenAI.
 - OpenAI responses use strict JSON Schema and are validated again by the application.
 - OpenAI response storage is disabled for this request.
 - API responses are not cached.
 - The MVP includes per-instance request limiting.
+- Connected routes require a workspace session; mutating routes enforce role checks and same-origin requests.
+- Raw PDFs are discarded after extraction; candidate analysis and audit records live in the workspace database.
 
 For a multi-instance production rollout, replace the in-memory limiter with a shared rate-limit store such as Vercel KV or Upstash Redis.
 
 ## Future scope
 
-- Authentication, workspaces, and role-based permissions
-- Database-backed tasks, candidates, and workflow runs
-- Durable workflow execution and retries
-- Shared rate limiting and job queues
+- Shared/distributed request limiting and background job queues
+- Crash recovery, idempotent retries, and operational monitoring for workflow runs
 - CRM, helpdesk, calendar, email, and HRIS integrations
-- Audit trails, observability, and evaluation dashboards
+- Expanded audit trails, observability, and evaluation dashboards
 - Additional specialized AI employees
 
 The planned sequence is documented in [docs/future-roadmap.md](./docs/future-roadmap.md).
+
+## Decisions and tradeoffs
+
+This was built as a hackathon MVP, so I made a few deliberate cuts:
+
+- I chose one real end-to-end AI path—the Recruiter—instead of adding several shallow model demos.
+- I kept a clearly labeled browser-local demo while adding a separate PostgreSQL-backed path for shared workspaces. A database must be provisioned and migrated before that path can be used.
+- I built the Workforce Engine as a typed graph with persisted step execution and human gates. It does not claim to send email or update external systems; background workers, idempotent retries, and connectors are future work.
+- I validate model output twice: first with strict JSON Schema at the API and again with application-side runtime guards. Model output is external input, even when it came from a structured request.
+- I made the human approval step part of the execution path. The hiring score is decision support, not an autonomous hiring decision.
+
+The next engineering investment is an independent job worker, shared rate limiting, evaluation data, and connector permissions. Those matter more than another dashboard card.
 
 ## Contributors
 

@@ -12,6 +12,7 @@ type WorkflowSidebarProps = {
   onRename: (id: string, name: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
+  connected?: boolean;
 };
 
 export default function WorkflowSidebar(props: WorkflowSidebarProps) {
@@ -141,7 +142,9 @@ export default function WorkflowSidebar(props: WorkflowSidebarProps) {
                 <div>
                   <p className="text-xs font-semibold text-slate-700">Delete this workflow?</p>
                   <p className="mt-1 text-[10px] leading-4 text-slate-500">
-                    This removes its locally saved configuration.
+                    {props.connected
+                      ? "This archives the workflow and keeps its run history."
+                      : "This removes its locally saved configuration."}
                   </p>
                   <div className="mt-3 flex justify-end gap-2">
                     <button
@@ -159,7 +162,7 @@ export default function WorkflowSidebar(props: WorkflowSidebarProps) {
                       }}
                       className="rounded-md bg-rose-600 px-2 py-1 text-[10px] font-semibold text-white"
                     >
-                      Delete
+                      {props.connected ? "Archive" : "Delete"}
                     </button>
                   </div>
                 </div>
