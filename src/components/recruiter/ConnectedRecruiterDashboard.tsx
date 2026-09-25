@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDashboard } from "@/components/dashboard/DashboardShell";
-import type { Candidate, HumanStatus, RecruiterAnalysisSource } from "@/lib/recruiter-data";
-import { getRecruiterMetrics, isCandidateAwaitingApproval } from "@/lib/recruiter-data";
+import type { Candidate, HumanStatus, RecruiterAnalysisSource, RecruiterMetrics } from "@/lib/recruiter-data";
 import { isCandidateRecord, toCandidate } from "@/lib/recruiter-client";
 import type { RecruiterAnalysis } from "@/types/recruiter";
 import CandidateDrawer from "@/components/recruiter/CandidateDrawer";
@@ -16,50 +15,95 @@ import ResumeReviewTab from "@/components/recruiter/tabs/ResumeReviewTab";
 
 type Tab = "Overview" | "Candidates" | "Resume Review" | "Approvals" | "Analytics";
 const tabs: Tab[] = ["Overview", "Candidates", "Resume Review", "Approvals", "Analytics"];
+const pageSize = 50;
+const emptyMetrics: RecruiterMetrics = {
+  receivedCount: 0,
+  reviewedCount: 0,
+  pendingApprovalCount: 0,
+  decisionedCount: 0,
+  approvedCount: 0,
+  advancedCount: 0,
+  averageReviewedScore: 0,
+  approvalRate: 0,
+};
 
 export default function ConnectedRecruiterDashboard() {
   const { notify, workspaceRole } = useDashboard();
   const [tab, setTab] = useState<Tab>("Overview");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [recentCandidates, setRecentCandidates] = useState<Candidate[]>([]);
+  const [pending, setPending] = useState<Candidate[]>([]);
+  const [metrics, setMetrics] = useState<RecruiterMetrics>(emptyMetrics);
+  const [candidatePage, setCandidatePage] = useState(1);
+  const [candidatePages, setCandidatePages] = useState(0);
+  const [pendingPage, setPendingPage] = useState(1);
+  const [pendingPages, setPendingPages] = useState(0);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [latestAnalysis, setLatestAnalysis] = useState<RecruiterAnalysis | null>(null);
   const [analysisSource, setAnalysisSource] = useState<RecruiterAnalysisSource | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const requestVersion = useRef(0);
 
   const refresh = useCallback(async () => {
+    const version = ++requestVersion.current;
+    setRefreshing(true);
     try {
-      const response = await fetch("/api/candidates?limit=50", { cache: "no-store" });
-      const payload: unknown = await response.json();
-      if (
-        !response.ok ||
-        !payload ||
-        typeof payload !== "object" ||
-        !("candidates" in payload) ||
-        !Array.isArray(payload.candidates)
-      ) {
-        throw new Error(getError(payload, "Could not load candidates."));
-      }
-      setCandidates(payload.candidates.filter(isCandidateRecord).map(toCandidate));
+      const [candidateResponse, recentResponse, pendingResponse, summaryResponse] = await Promise.all([
+        fetch(`/api/candidates?limit=${pageSize}&page=${candidatePage}`, { cache: "no-store" }),
+        fetch("/api/candidates?limit=4", { cache: "no-store" }),
+        fetch(`/api/candidates?status=ReviewRequired&limit=${pageSize}&page=${pendingPage}`, { cache: "no-store" }),
+        fetch("/api/recruiter/summary", { cache: "no-store" }),
+      ]);
+      const [candidatePayload, recentPayload, pendingPayload, summaryPayload]: unknown[] = await Promise.all([
+        candidateResponse.json(),
+        recentResponse.json(),
+        pendingResponse.json(),
+        summaryResponse.json(),
+      ]);
+      if (!candidateResponse.ok || !isCandidatePage(candidatePayload))
+        throw new Error(getError(candidatePayload, "Could not load candidates."));
+      if (!recentResponse.ok || !isCandidatePage(recentPayload))
+        throw new Error(getError(recentPayload, "Could not load recent candidates."));
+      if (!pendingResponse.ok || !isCandidatePage(pendingPayload))
+        throw new Error(getError(pendingPayload, "Could not load approvals."));
+      if (!summaryResponse.ok || !isMetricsPayload(summaryPayload))
+        throw new Error(getError(summaryPayload, "Could not load recruiter metrics."));
+      if (version !== requestVersion.current) return;
+      setCandidates(candidatePayload.candidates.filter(isCandidateRecord).map(toCandidate));
+      setRecentCandidates(recentPayload.candidates.filter(isCandidateRecord).map(toCandidate));
+      setPending(
+        pendingPayload.candidates
+          .filter(isCandidateRecord)
+          .map(toCandidate)
+          .filter((item) => item.approvalId),
+      );
+      setMetrics(summaryPayload.metrics);
+      setCandidatePages(candidatePayload.pages);
+      setPendingPages(pendingPayload.pages);
+      if (candidatePage > Math.max(1, candidatePayload.pages)) setCandidatePage(Math.max(1, candidatePayload.pages));
+      if (pendingPage > Math.max(1, pendingPayload.pages)) setPendingPage(Math.max(1, pendingPayload.pages));
       setError("");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not load candidates.");
+      if (version === requestVersion.current)
+        setError(cause instanceof Error ? cause.message : "Could not load candidates.");
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, []);
+  }, [candidatePage, pendingPage]);
 
   useEffect(() => {
     queueMicrotask(() => {
       void refresh();
     });
   }, [refresh]);
-  const metrics = useMemo(() => getRecruiterMetrics(candidates), [candidates]);
-  const pending = useMemo(() => candidates.filter(isCandidateAwaitingApproval), [candidates]);
-
   const updateStatus = async (candidateId: string, status: HumanStatus) => {
-    const candidate = candidates.find((item) => item.id === candidateId);
+    const candidate = pending.find((item) => item.id === candidateId);
     if (!candidate?.approvalId || busyId) return;
     const action = status === "Approved" ? "approve" : status === "Rejected" ? "reject" : "interview";
     setBusyId(candidateId);
@@ -89,6 +133,8 @@ export default function ConnectedRecruiterDashboard() {
       }
       setLatestAnalysis(payload.analysis as RecruiterAnalysis);
       setAnalysisSource("demo");
+      setCandidatePage(1);
+      setPendingPage(1);
       await refresh();
       notify("Fictional demo analysis saved. No live AI request was made.", "info");
     } catch (cause) {
@@ -160,14 +206,24 @@ export default function ConnectedRecruiterDashboard() {
       <div className="mt-7">
         {tab === "Overview" && (
           <ConnectedRecruiterOverview
-            candidates={candidates}
-            pendingCount={pending.length}
+            candidates={recentCandidates}
+            pendingCount={metrics.pendingApprovalCount}
             onOpenCandidate={setSelectedCandidate}
             onOpenApprovals={() => setTab("Approvals")}
             onOpenResumeReview={() => setTab("Resume Review")}
           />
         )}
-        {tab === "Candidates" && <CandidatesTab candidates={candidates} onOpenCandidate={setSelectedCandidate} />}
+        {tab === "Candidates" && (
+          <CandidatesTab
+            candidates={candidates}
+            loading={refreshing}
+            total={metrics.receivedCount}
+            page={candidatePage}
+            pages={candidatePages}
+            onPageChange={setCandidatePage}
+            onOpenCandidate={setSelectedCandidate}
+          />
+        )}
         {tab === "Resume Review" && (
           <ResumeReviewTab
             latestAnalysis={latestAnalysis}
@@ -175,6 +231,8 @@ export default function ConnectedRecruiterDashboard() {
             onAnalyzed={(analysis) => {
               setLatestAnalysis(analysis);
               setAnalysisSource("openai");
+              setCandidatePage(1);
+              setPendingPage(1);
               void refresh();
             }}
             onError={(message) => notify(message, "error")}
@@ -183,7 +241,14 @@ export default function ConnectedRecruiterDashboard() {
         )}
         {tab === "Approvals" && (
           <div className={busyId ? "pointer-events-none opacity-60" : ""}>
-            <ApprovalsTab candidates={pending} onUpdate={(id, status) => void updateStatus(id, status)} />
+            <ApprovalsTab
+              candidates={pending}
+              loading={refreshing}
+              page={pendingPage}
+              pages={pendingPages}
+              onPageChange={setPendingPage}
+              onUpdate={(id, status) => void updateStatus(id, status)}
+            />
           </div>
         )}
         {tab === "Analytics" && <AnalyticsTab metrics={metrics} />}
@@ -207,4 +272,27 @@ function getError(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string")
     return payload.error;
   return fallback;
+}
+
+function isCandidatePage(value: unknown): value is { candidates: unknown[]; pages: number } {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    "candidates" in value &&
+    Array.isArray(value.candidates) &&
+    "pages" in value &&
+    typeof value.pages === "number"
+  );
+}
+
+function isMetricsPayload(value: unknown): value is { metrics: RecruiterMetrics } {
+  if (!value || typeof value !== "object" || !("metrics" in value)) return false;
+  const metrics = value.metrics;
+  return (
+    !!metrics &&
+    typeof metrics === "object" &&
+    Object.keys(emptyMetrics).every(
+      (key) => key in metrics && typeof (metrics as Record<string, unknown>)[key] === "number",
+    )
+  );
 }

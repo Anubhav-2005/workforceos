@@ -1,12 +1,21 @@
 import { CheckCircle2 } from "lucide-react";
 import type { Candidate, HumanStatus } from "@/lib/recruiter-data";
 import ApprovalCard from "@/components/recruiter/ApprovalCard";
+import PaginationControls from "@/components/recruiter/PaginationControls";
 
 export default function ApprovalsTab({
   candidates,
+  loading = false,
+  page,
+  pages,
+  onPageChange,
   onUpdate,
 }: {
   candidates: Candidate[];
+  loading?: boolean;
+  page?: number;
+  pages?: number;
+  onPageChange?: (page: number) => void;
   onUpdate: (candidateId: string, status: HumanStatus) => void;
 }) {
   return (
@@ -16,7 +25,11 @@ export default function ApprovalsTab({
         <p className="mt-1 text-xs text-slate-500">The Recruiter recommends. You make the final decision.</p>
       </div>
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
-        {candidates.length ? (
+        {loading ? (
+          Array.from({ length: 2 }, (_, index) => (
+            <div key={index} className="h-40 animate-pulse rounded-2xl bg-white" />
+          ))
+        ) : candidates.length ? (
           candidates.map((candidate) => (
             <ApprovalCard
               key={candidate.id}
@@ -32,6 +45,7 @@ export default function ApprovalsTab({
           </div>
         )}
       </div>
+      {page && pages && onPageChange && <PaginationControls page={page} pages={pages} onPageChange={onPageChange} />}
     </section>
   );
 }
