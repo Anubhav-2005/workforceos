@@ -28,7 +28,7 @@ The fastest review path takes about three minutes:
 
 What is real today: the product UI; PDF validation and text extraction; server-side OpenAI Responses API analysis with strict schema validation; account sessions and tenant-scoped Postgres records when configured; human approval gates; persisted workflow steps, logs, and drafts; and CSV export. The browser-local demo is explicitly labeled. External ATS, email, and onboarding actions are **not connected**; AI output is a draft, not a sent message or hiring decision.
 
-For a deeper review, see the [architecture](./docs/architecture.md), [feature inventory](./docs/features.md), [jury Q&A](./docs/judges-faq.md), and [complete code walkthrough](./docs/COMPLETE_QA_AND_CODE_WALKTHROUGH.md).
+For a deeper review, see the [architecture](./docs/architecture.md), [feature inventory](./docs/features.md), [jury Q&A](./docs/judges-faq.md), and [demo script](./docs/demo-script.md).
 
 ## The problem
 
@@ -55,6 +55,7 @@ The app has two modes. Without `DATABASE_URL`, the original browser-local demo i
 - Generate a strict, structured hiring analysis with OpenAI.
 - Review skills, strengths, weaknesses, experience, score, decision, and recommended role.
 - Move candidates through approval, rejection, and interview-request states.
+- Browse paginated candidates and approval queues with workspace-wide pipeline metrics.
 - Persist candidates and decisions in the signed-in workspace; browser-local demo data remains separate.
 
 ### AI Sales Executive
@@ -72,7 +73,8 @@ The app has two modes. Without `DATABASE_URL`, the original browser-local demo i
 
 ### Workforce Engine
 
-- Create, rename, duplicate, enable, disable, and delete workflows.
+- Create, rename, duplicate, enable, disable, and archive workflows.
+- Edit linear workflow steps, assignments, and instructions; existing runs keep their saved execution snapshot.
 - Run an animated collaboration from resume upload to onboarding.
 - Pause execution for a human approval.
 - Approve and resume, or reject and stop the workflow.
@@ -90,7 +92,7 @@ The app has two modes. Without `DATABASE_URL`, the original browser-local demo i
 
 [Open the live WorkforceOS dashboard](https://workforceos-bay.vercel.app/dashboard).
 
-The public deployment may show **Demo workspace** until a Postgres `DATABASE_URL` is configured. In that mode, fictional candidate data and workflow simulation work locally in the browser, but live AI analysis and shared accounts are disabled. The connected mode requires Postgres, a funded server-side `OPENAI_API_KEY`, and migrations.
+The connected-workspace implementation is on the `codex/connected-mvp` branch and has not been deployed with a database by this work. Check the live site's banner before presenting: if it says **Demo workspace**, fictional candidate data and workflow simulation work locally in the browser, but live AI analysis and shared accounts are disabled. Connected mode requires Postgres, a funded server-side `OPENAI_API_KEY`, and migrations.
 
 ## Tech stack
 

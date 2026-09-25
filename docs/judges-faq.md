@@ -54,7 +54,7 @@ Use the first sentence of each answer first. Add the supporting detail only if a
 
 ### Explain the architecture simply.
 
-**Next.js serves the product UI and a server-only analysis route, while typed domain services separate recruiting and workflow logic from presentation.** For a resume, the server validates the PDF, extracts bounded text, calls the OpenAI Responses API with a strict JSON schema, validates the result, and returns structured data. The browser manages local MVP state; secrets, prompts, and PDF parsing stay on the server.
+**Next.js serves the UI and tenant-scoped APIs, PostgreSQL stores connected-workspace records, and server-only services handle AI and workflow execution.** For a resume, the server validates the PDF, extracts bounded text, calls the OpenAI Responses API with a strict JSON schema, validates the result, and saves structured evidence. The separate browser-local demo works without a database; secrets, prompts, and PDF parsing stay on the server.
 
 ### Why the OpenAI Responses API?
 
@@ -70,19 +70,19 @@ Use the first sentence of each answer first. Add the supporting detail only if a
 
 ### What is the biggest technical bottleneck at scale?
 
-**Durable, tenant-aware workflow execution is the main step beyond this MVP.** We would move execution to a queue-backed runner with persisted state, retries, idempotency keys, dead-letter handling, and observability. The in-memory rate limiter would become a shared distributed limiter, and model calls would use per-tenant budgets and concurrency controls.
+**A queue-backed worker is the main step beyond this MVP.** The connected runner persists each step and approval, but advances through request-driven calls. At scale it needs idempotent background jobs, retries, dead-letter handling, and observability. The in-memory rate limiter would become a shared distributed limiter, and model calls would use per-tenant budgets and concurrency controls.
 
 ### How does the architecture become multi-tenant?
 
-**Replace browser-local records with a database in which every task, candidate, workflow, and run is scoped to an authorized workspace.** Add an identity provider, RBAC, tenant-aware API checks, encrypted storage, audit events, and per-tenant quotas. The current component, service, route, and domain boundaries let that infrastructure change without rebuilding the UI.
+**The connected mode is already tenant-scoped.** Database records are attached to an organization, and API routes require a session and workspace role. A larger rollout would add SSO, stronger operational controls, per-tenant quotas, and independent security review. The local demo is intentionally separate and has no shared accounts.
 
 ### Why use localStorage in the MVP?
 
-**It was a deliberate two-day scope decision that proves stateful product behavior without pretending a database and auth layer were finished.** It makes tasks, decisions, workflows, and settings survive refreshes in one browser. Shared data, permissions, and collaboration require a real backend in production.
+**`localStorage` keeps the public demo usable without external infrastructure.** It makes fictional tasks, decisions, workflows, and settings survive refreshes in one browser. The connected mode uses authenticated PostgreSQL records for shared workspaces; demo data never masquerades as shared data.
 
 ### Why simulate the Workforce Engine?
 
-**The simulation proves the execution semantics and user experience: ordered steps, runtime status, live logs, approval pause, resume, rejection, and completion.** Production replaces the timer-based runner with durable jobs and real connectors. The typed workflow model and UI do not need to be discarded.
+**The browser-local demo simulates handoffs so the product can be explored without a database or model spend.** The connected mode persists the graph, step executions, logs, and human approval; AI employee steps generate drafts, but no external email or ATS action is sent. A production rollout would move execution into durable workers and add permissioned connectors.
 
 ## Trust, safety, and reliability
 
@@ -100,7 +100,7 @@ Use the first sentence of each answer first. Add the supporting detail only if a
 
 ### How is resume data protected?
 
-**The MVP validates the file, limits it to 5 MB, bounds extracted text, does not persist the original resume, and disables OpenAI response storage for the request.** Production would add authenticated access, encryption, configurable retention and deletion, regional controls where required, data-processing agreements, audit logs, and explicit candidate consent policies.
+**The connected route requires sign-in, validates the PDF, limits it to 4 MB, bounds extracted text, discards the original file, and disables OpenAI response storage for the request.** Candidate deletion is supported. A production hiring rollout would still need encryption review, configurable retention, regional controls where required, data-processing agreements, and explicit candidate consent policies.
 
 ### How would you make workflow actions safe?
 
@@ -110,15 +110,15 @@ Use the first sentence of each answer first. Add the supporting detail only if a
 
 ### What is real and what is simulated today?
 
-**The interface, routing, interactions, PDF validation and extraction, server-side OpenAI analysis, structured response validation, candidate decisions, local persistence, workflow state machine, logs, and analytics interactions are real.** Cross-employee timing and external ATS, email, CRM, and welcome-package actions are simulated and clearly presented as such.
+**In connected mode, accounts, tenant-scoped records, PDF analysis, human decisions, workflow steps, logs, draft outputs, and measured analytics are implemented.** The public demo remains browser-local and fictional. External ATS, email, CRM, and welcome-package delivery are not connected; generated communications stay as drafts for review.
 
 ### What would you build next?
 
-**First: authentication, tenant-scoped database records, and a durable workflow runner. Second: ATS, email, calendar, CRM, and helpdesk connectors. Third: audit-grade history, model evaluations, cost controls, governance, and additional AI employees.** That sequence turns the demonstrated interaction model into a reliable multi-tenant product.
+**First: deploy and exercise the connected mode with Postgres and a funded model key, then add a queue-backed runner and shared rate limiting. Second: permissioned ATS, email, calendar, CRM, and helpdesk connectors. Third: model evaluations, cost controls, governance, and additional AI employees.** Those steps turn the current foundation into a production service.
 
 ### What did you deliberately not build?
 
-**We did not fake authentication, a shared database, or external integrations inside the hackathon window.** We concentrated on one real AI path, complete human-control UX, a typed collaboration model, and production-shaped boundaries. This makes the remaining work explicit and avoids demo-only code being mistaken for a deployable control plane.
+**We did not claim that drafts were sent or that the public browser-local demo is a shared workspace.** The connected branch implements accounts, a database, human approvals, and persisted workflow steps, but it has not been deployed and tested against a configured production database. Real integrations, background workers, and hiring-quality evaluations remain outside this MVP.
 
 ### What is the strongest evidence that this can become a product?
 

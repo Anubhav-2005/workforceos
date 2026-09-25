@@ -39,7 +39,7 @@ Rehearse **6:30 of prepared content plus a 30-second buffer**, followed by Q&A. 
 - Maya, the AI Recruiter, accepts a PDF and returns a validated, structured hiring analysis through a real server-side OpenAI path.
 - Candidate decisions remain behind an explicit human approval step.
 - The Workforce Engine visualizes Recruiter, Approval, Sales, and Support handoffs with runtime states and a live log.
-- Tasks, candidates, workflow configuration, and settings persist locally between refreshes.
+- The public demo saves fictional state in this browser; connected mode saves accounts, candidates, tasks, approvals, and workflow runs in PostgreSQL.
 - Analytics and CSV export turn activity into a management view.
 - Navigation, menus, modals, buttons, empty states, error states, loading feedback, and responsive layouts are functional.
 
@@ -47,7 +47,7 @@ Rehearse **6:30 of prepared content plus a 30-second buffer**, followed by Q&A. 
 
 ### Live prototype performance - 30%
 
-Show one uninterrupted loop: **resume upload → structured analysis → human decision → workflow execution → outcome analytics**. Prioritize visible behavior over describing every screen. If an external service fails, acknowledge it once and continue with seeded data.
+Show one uninterrupted loop: **resume review → structured analysis → human decision → workflow execution → outcome analytics**. Upload a real PDF only on a connected deployment you have already tested. Otherwise use the labeled fictional result and explicitly call the workflow a local simulation. If an external service fails, acknowledge it once and continue with a prepared candidate or the demo path.
 
 ### Business model and real-world scalability - 25%
 
@@ -66,12 +66,12 @@ Why the model can work:
 
 Use this 20-second architecture explanation:
 
-“The interface is built with Next.js App Router, React, and strict TypeScript. Browser code sends the resume to an internal Node route; the server validates and parses the PDF, calls the OpenAI Responses API with a strict schema, validates the response again, and returns only structured data. AI credentials and prompts remain server-only. The workflow domain is separated from its simulator so a durable execution engine can replace it without rebuilding the product UI.”
+“The interface uses Next.js App Router, React, and strict TypeScript. Connected API routes require a workspace session and save records in PostgreSQL. A server-only Node route validates and parses the PDF, calls the OpenAI Responses API with a strict schema, and validates the output again. The workflow runner persists steps and human approvals; a browser-local simulation remains for public demos. Secrets never enter client code.”
 
 Be ready to explain these deliberate MVP boundaries:
 
-- `localStorage` replaces accounts and a database during the hackathon;
-- cross-employee actions are simulated, while the Recruiter analysis path is real;
+- `localStorage` is limited to the labeled demo path; connected mode has sessions and tenant-scoped Postgres records;
+- connected workflow steps and approvals persist, but external email and ATS actions remain drafts/unconnected;
 - request limiting is per server instance and must become distributed at scale;
 - raw resumes are not persisted by the MVP;
 - human approval is required because model scores are decision support, not ground truth.
@@ -113,24 +113,25 @@ Land with Recruiter because the before-and-after outcome is measurable. Prove re
 
 ## Production scalability path
 
-| MVP today                      | Production evolution                                      |
-| ------------------------------ | --------------------------------------------------------- |
-| Browser-local product state    | Postgres with tenant-scoped records and migrations        |
-| No authentication              | Identity provider, workspace membership, and RBAC         |
-| Visual workflow simulation     | Durable queue/runner with retries and idempotency         |
-| In-memory request limiting     | Distributed rate limiting and per-tenant quotas           |
-| No original-resume persistence | Encrypted object storage with explicit retention controls |
-| Basic errors and activity logs | Central tracing, audit events, alerts, and model evals    |
-| One OpenAI-backed skill        | Model routing, fallbacks, budgets, and versioned prompts  |
-| Seeded downstream actions      | ATS, CRM, email, calendar, and helpdesk integrations      |
+| MVP today                               | Production evolution                                           |
+| --------------------------------------- | -------------------------------------------------------------- |
+| Local demo plus tenant-scoped Postgres  | Production database operations and retention policies          |
+| Opaque sessions and workspace roles     | SSO, account recovery, and enterprise access reviews           |
+| Request-driven persisted workflow steps | Durable queue/runner with retries and idempotency              |
+| In-memory request limiting              | Distributed rate limiting and per-tenant quotas                |
+| No original-resume persistence          | Encrypted object storage only if a retention use case needs it |
+| Audit records and basic errors          | Central tracing, alerts, and model evaluations                 |
+| One OpenAI-backed skill                 | Model routing, fallbacks, budgets, and versioned prompts       |
+| Internal draft actions                  | ATS, CRM, email, calendar, and helpdesk integrations           |
 
 ## Claims boundary
 
 Say these precisely:
 
-- **Real:** responsive product UI, routing and interactions, PDF validation and extraction, server-side OpenAI structured analysis, candidate decisions, local persistence, workflow state machine and log, analytics interactions, CSV export.
-- **Simulated:** external ATS updates, sent email, welcome-package creation, and durable background execution across systems.
-- **Planned:** authentication, shared database state, enterprise integrations, audit-grade history, distributed workflow execution, and multi-tenant governance.
+- **Real in connected mode:** responsive product UI, account sessions, tenant-scoped records, PDF validation and extraction, server-side OpenAI analysis, human decisions, persisted workflow steps and logs, measured analytics, and CSV export.
+- **Demo-only:** fictional browser-local candidates and timer-based handoffs, clearly labeled by the amber banner.
+- **Not connected:** external ATS updates, sent email, welcome-package delivery, and durable background execution across systems.
+- **Planned:** production deployment of connected mode, enterprise integrations, queue workers, deeper governance, and model evaluations.
 
 Never describe seeded metrics as customer results. Call them representative product data.
 

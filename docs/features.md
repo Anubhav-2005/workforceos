@@ -6,7 +6,7 @@
 - Active-route highlighting
 - Searchable work activity
 - Notification and profile menus
-- Local task creation with assignee, priority, and description
+- Task creation with assignee, priority, and description (workspace-backed in connected mode)
 - Toast feedback and loading boundaries
 
 ## AI employees
@@ -31,7 +31,7 @@ Every employee has a profile, current assignment, progress, status, performance,
 
 ### Candidates
 
-- Realistic seeded candidate pipeline
+- Fictional seeded candidates in demo mode; analyzed workspace candidates in connected mode
 - Resume state, experience, skills, AI score, and human decision state
 - Candidate detail drawer
 - Persisted candidates created from uploaded resumes
@@ -40,7 +40,7 @@ Every employee has a profile, current assignment, progress, status, performance,
 
 - PDF drag and drop
 - Native file picker
-- 5 MB validation
+- 4 MB validation
 - Upload and analysis progress
 - In-browser PDF preview
 - OpenAI Responses API analysis
@@ -66,7 +66,8 @@ Every employee has a profile, current assignment, progress, status, performance,
 
 - Workflow list and selection
 - Create and rename
-- Duplicate and delete
+- Duplicate and remove (archive in connected mode)
+- Edit linear workflow steps and assignments in connected mode
 - Enable and disable
 - Animated node execution
 - Running, waiting, completed, failed, and idle states
@@ -74,7 +75,7 @@ Every employee has a profile, current assignment, progress, status, performance,
 - Approve-and-resume or reject-and-stop behavior
 - Live execution log
 - Workflow health and utilization metrics
-- Local persistence
+- Browser-local persistence in demo mode; saved definitions and runs in PostgreSQL when connected
 
 ## Analytics
 
