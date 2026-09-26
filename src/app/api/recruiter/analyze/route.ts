@@ -1,4 +1,3 @@
-import OpenAI from "openai";
 import { z } from "zod";
 import { EnvironmentConfigurationError } from "@/lib/env";
 import { analyzeRecruiterResume, RecruiterAIError } from "@/lib/ai/analyzeRecruiterResume";
@@ -8,6 +7,7 @@ import { extractResumeText, MAX_MULTIPART_BYTES, ResumeFileError } from "@/lib/p
 import { persistRecruiterAnalysis } from "@/lib/recruiter/persist-analysis";
 import { checkRateLimit } from "@/lib/rateLimit";
 import type { RecruiterJobCriteria } from "@/types/recruiter";
+import { describeAIServiceFailure, logAIServiceFailure } from "@/lib/ai/errors";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -122,20 +122,10 @@ function getRequestIdentifier(request: Request) {
 function handleError(error: unknown) {
   if (error instanceof ResumeFileError) return jsonError(error.message, error.status);
   if (error instanceof RecruiterAIError) return jsonError(error.message, error.reason === "refusal" ? 422 : 502);
-  if (error instanceof OpenAI.APIConnectionTimeoutError)
-    return jsonError("The AI analysis timed out. Please try again.", 504);
-  if (error instanceof OpenAI.APIConnectionError)
-    return jsonError("Unable to reach the AI service. Please check your connection and try again.", 502);
-  if (error instanceof OpenAI.APIError) {
-    if (error.code === "insufficient_quota")
-      return jsonError(
-        "Resume analysis is temporarily unavailable because the AI project has no remaining quota.",
-        503,
-      );
-    if (error.status === 429) return jsonError("The AI service is busy. Please try again in a moment.", 429);
-    if (error.status === 408 || error.status === 504)
-      return jsonError("The AI analysis timed out. Please try again.", 504);
-    return jsonError("The AI service could not analyze this resume right now.", 502);
+  const serviceFailure = describeAIServiceFailure(error);
+  if (serviceFailure) {
+    logAIServiceFailure("recruiter", error);
+    return jsonError(serviceFailure.message, serviceFailure.status);
   }
   if (error instanceof EnvironmentConfigurationError && error.variable === "OPENAI_API_KEY") {
     return jsonError("Resume analysis is not configured. Add OPENAI_API_KEY to the server environment.", 503);

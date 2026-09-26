@@ -1,7 +1,7 @@
 import "server-only";
-import OpenAI from "openai";
 import { z } from "zod";
 import { getOpenAIClient } from "@/lib/openai";
+import { describeAIServiceFailure, logAIServiceFailure } from "@/lib/ai/errors";
 
 const agentOutputSchema = z.object({
   summary: z.string().trim().min(1).max(1500),
@@ -89,13 +89,10 @@ export async function runWorkflowAgent(input: {
 }
 
 export function getWorkflowAgentError(error: unknown): string {
-  if (error instanceof OpenAI.APIConnectionTimeoutError) return "The AI employee timed out. Retry this run.";
-  if (error instanceof OpenAI.APIConnectionError) return "The AI service is unreachable. Retry this run.";
-  if (error instanceof OpenAI.APIError) {
-    if (error.code === "insufficient_quota") return "The AI project has no remaining quota.";
-    if (error.status === 429) return "The AI service is rate limited. Retry this run later.";
-    if (error.status === 401 || error.status === 403) return "The AI service credentials need attention.";
-    return "The AI employee could not complete this step.";
+  const serviceFailure = describeAIServiceFailure(error);
+  if (serviceFailure) {
+    logAIServiceFailure("workflow", error);
+    return serviceFailure.message;
   }
   return error instanceof Error ? error.message : "The AI employee could not complete this step.";
 }
