@@ -10,7 +10,7 @@
 ## Deploy to Vercel
 
 1. In Vercel, choose **Add New → Project** and import `Anubhav-2005/workforceos`.
-2. Keep the framework preset as **Next.js**. The build command is `npm run build`.
+2. Keep the framework preset as **Next.js**. The committed `vercel.json` sets the deployment build command to `npm run build:deployment`.
 3. In **Settings → Environment Variables**, add the variables below for Production (and Preview if desired):
 
    ```text
@@ -20,8 +20,8 @@
    NEXT_PUBLIC_APP_URL=https://workforceos-bay.vercel.app
    ```
 
-4. Run the committed Prisma migration against that database from a trusted terminal with `DATABASE_URL` set: `npm run db:deploy`. Use a direct database URL that supports migrations; if your provider offers a pooled runtime URL, keep the direct URL for migrations.
-5. Deploy the project. `npm run build` generates the Prisma client before compiling.
+4. If using Neon's native integration, connect the database to the intended Vercel environment without a custom variable prefix. It supplies `DATABASE_URL` for runtime access and `DATABASE_URL_UNPOOLED` for schema changes. Keep database secrets server-side.
+5. Deploy the project. `npm run build:deployment` generates Prisma Client, applies committed migrations, then builds the app. It prefers the direct URL for migrations without changing the runtime URL, and stops deployment if migration fails. Without a database it builds the labeled demo. Never use `migrate reset` or `db push` to prepare a shared deployment. `npm run db:deploy` remains available for manual migrations from a trusted terminal.
 6. If Vercel assigns a different final URL, update `NEXT_PUBLIC_APP_URL` and redeploy.
 
 `OPENAI_API_KEY` must be entered in Vercel; do not add `.env.local` to Git or paste a key into source code. Rotate any key that has been pasted into a chat or issue. The app uses the Node.js runtime and allows up to 60 seconds for PDF extraction and analysis. The PDF parser and its native canvas dependency are kept external in `next.config.ts` so Vercel includes the correct Linux runtime files.

@@ -155,12 +155,13 @@ OPENAI_MODEL=gpt-5.6-terra
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-| Variable              | Required           | Purpose                                                                            |
-| --------------------- | ------------------ | ---------------------------------------------------------------------------------- |
-| `DATABASE_URL`        | For connected mode | PostgreSQL connection string. Without it, the app runs in labeled local demo mode. |
-| `OPENAI_API_KEY`      | For live AI work   | Server-side OpenAI credential. Never expose or commit it.                          |
-| `OPENAI_MODEL`        | Optional           | Responses API model for AI tasks (default: `gpt-5.6-terra`).                       |
-| `NEXT_PUBLIC_APP_URL` | Recommended        | Absolute URL for canonical metadata, sitemap, and social cards.                    |
+| Variable                | Required           | Purpose                                                                                           |
+| ----------------------- | ------------------ | ------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`          | For connected mode | PostgreSQL connection string. Without it, the app runs in labeled local demo mode.                |
+| `DATABASE_URL_UNPOOLED` | Optional           | Direct PostgreSQL connection used only for deployment migrations. Neon supplies it automatically. |
+| `OPENAI_API_KEY`        | For live AI work   | Server-side OpenAI credential. Never expose or commit it.                                         |
+| `OPENAI_MODEL`          | Optional           | Responses API model for AI tasks (default: `gpt-5.6-terra`).                                      |
+| `NEXT_PUBLIC_APP_URL`   | Recommended        | Absolute URL for canonical metadata, sitemap, and social cards.                                   |
 
 Never add `.env.local` or a real credential to Git. A key pasted into a chat or issue should be rotated before deployment.
 
@@ -197,12 +198,12 @@ npm audit --audit-level=high
 ### Vercel
 
 1. Import `Anubhav-2005/workforceos` into Vercel.
-2. Provision PostgreSQL, run `npm run db:deploy` against it, and set `DATABASE_URL` in Vercel.
+2. Provision PostgreSQL and set `DATABASE_URL` in Vercel. Neon can inject the runtime and direct migration URLs through its native integration.
 3. Add a funded `OPENAI_API_KEY` as a secret and set `NEXT_PUBLIC_APP_URL` to the final URL.
-4. Deploy with `npm run build`; it generates the Prisma client before compiling.
+4. The committed `vercel.json` uses `npm run build:deployment`: generate Prisma Client, apply committed migrations, then build. A migration failure prevents deployment. Normal `npm run build` does not change a database.
 5. Sign up, upload a PDF, check the approval pause/resume, run a task, and verify persistence after refresh.
 
-No `vercel.json` is required for the current architecture. The Recruiter API route explicitly uses the Node.js runtime and allows up to 60 seconds for PDF extraction and analysis.
+The Recruiter API route explicitly uses the Node.js runtime and allows up to 60 seconds for PDF extraction and analysis.
 
 See [docs/deployment.md](./docs/deployment.md) for the complete deployment and verification procedure.
 
